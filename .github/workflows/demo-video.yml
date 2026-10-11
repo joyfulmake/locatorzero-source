@@ -12,7 +12,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npm ci
+      - run: npm ci && npx playwright-core install ffmpeg
       - run: sudo apt-get update -q && sudo apt-get install -y -q ffmpeg fonts-noto-color-emoji
       - name: Record
         env:
