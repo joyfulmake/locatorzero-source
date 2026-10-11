@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.1.6.0.schema.json
 PackageIdentifier: LocatorZero.LocatorZero
-PackageVersion: 0.1.0
+PackageVersion: 0.2.0
 PackageLocale: en-US
 Publisher: LocatorZero
 PublisherUrl: https://locatorzero.pages.dev
@@ -8,14 +8,19 @@ PrivacyUrl: https://locatorzero.pages.dev/privacy
 PackageName: LocatorZero
 PackageUrl: https://locatorzero.pages.dev/download
 License: Proprietary (source available); free 90-day trial
-ShortDescription: Find any file, folder, web page or open tab by name. Private, offline, read-only.
+ShortDescription: Find any file, folder, web page or open tab by name, and free up space from duplicates. Private and offline.
 Description: |-
   LocatorZero answers one question: where does it live? Type a few letters and see every place a file, folder,
   web page or open tab lives: this computer, USB, external and network drives, cloud folders and every browser.
   It asks before it searches each place, never connects to the internet, and keeps no copy of what it finds.
+  Clean up finds duplicate and large files, shows every copy on a map, and moves the extras to the Recycle Bin
+  only after you confirm.
+ReleaseNotes: Clean up (duplicate and large files, with a map; files move to the Recycle Bin only after you confirm). About and What's new in the menu.
+ReleaseNotesUrl: https://github.com/joyfulmake/locatorzero-source/blob/main/CHANGELOG.md
 Moniker: locatorzero
 Tags:
   - desktop-search
+  - duplicate-finder
   - file-search
   - finder
   - locate

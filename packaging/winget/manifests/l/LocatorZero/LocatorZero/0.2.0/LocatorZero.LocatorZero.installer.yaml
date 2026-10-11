@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.6.0.schema.json
 PackageIdentifier: LocatorZero.LocatorZero
-PackageVersion: 0.1.0
+PackageVersion: 0.2.0
 InstallerType: nullsoft
 Scope: user
 InstallModes:
@@ -9,7 +9,7 @@ InstallModes:
 UpgradeBehavior: install
 Installers:
   - Architecture: x64
-    InstallerUrl: https://locatorzero.pages.dev/downloads/LocatorZero_0.1.0_x64-setup.exe
-    InstallerSha256: ECED81E07E7453E6DC2CF49478AE7F413FB163B1752791F846E9672340C24D11
+    InstallerUrl: https://locatorzero.pages.dev/downloads/LocatorZero_0.2.0_x64-setup.exe
+    InstallerSha256: 115F0D1DE422C260C1B834C776BF96E7EA98EAB320E9937913C578BE849BC57B
 ManifestType: installer
 ManifestVersion: 1.6.0

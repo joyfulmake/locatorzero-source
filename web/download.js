@@ -65,7 +65,19 @@
       ? '<p class="dl-wait">LocatorZero runs on Windows, macOS and Linux. Open this page on your computer to download it, or <a href="./">try the browser version</a> here.</p>'
       : '<p class="dl-wait">Choose your system below.</p>';
   }
-  $('dlMeta').textContent = 'Version ' + M.version + ' · built ' + M.built + (M.commit ? ' from commit ' + M.commit : '');
+  // The commit links to the public source, so anyone can see exactly what each installer was built from.
+  $('dlMeta').textContent = 'Version ' + M.version + ' · built ' + M.built + (M.commit ? ' from commit ' : '');
+  if (M.commit) {
+    var a = document.createElement('a');
+    a.href = 'https://github.com/joyfulmake/locatorzero-source/commit/' + encodeURIComponent(M.commit);
+    a.rel = 'noopener noreferrer'; a.textContent = M.commit;
+    $('dlMeta').appendChild(a);
+    $('dlMeta').appendChild(document.createTextNode(' · '));
+    var c = document.createElement('a');
+    c.href = 'https://github.com/joyfulmake/locatorzero-source/blob/main/CHANGELOG.md';
+    c.rel = 'noopener noreferrer'; c.textContent = "What's new";
+    $('dlMeta').appendChild(c);
+  }
 
   // ---- all downloads ----
   var groups = [['windows', 'Windows', '🪟'], ['mac', 'macOS', '🍎'], ['linux', 'Linux', '🐧']];

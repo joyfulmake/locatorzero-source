@@ -4,6 +4,10 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      base_url:
+        description: Test a deployment instead of the files in this commit (e.g. https://locatorzero.pages.dev/)
+        required: false
 jobs:
   e2e:
     if: github.repository == 'joyfulmake/locatorzero-source'
@@ -17,5 +21,6 @@ jobs:
       - name: End-to-end tests
         env:
           CHROMIUM: /usr/bin/google-chrome
+          BASE_URL: ${{ inputs.base_url }}
         run: node tests/e2e.mjs
       - run: node tests/licence-key-service.mjs
