@@ -16,6 +16,12 @@
     reveal: function (path, url) { return invoke('reveal', { path: path || null, url: url || null }); },
     status: function () { return invoke('status'); },
     setupTabs: function () { return invoke('setup_tabs'); },
+    cleanup: {
+      scan: function (path) { return invoke('cleanup_scan', { path: path }); },
+      progress: function () { return invoke('cleanup_progress'); },
+      stop: function () { return invoke('cleanup_stop'); },
+      trash: function (items) { return invoke('cleanup_trash', { items: items }); }
+    },
     licence: {
       status: function () { return invoke('licence_status'); },
       activate: function (key) { return invoke('licence_activate', { key: key }); },

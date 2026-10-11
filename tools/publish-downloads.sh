@@ -4,7 +4,8 @@
 #   tools/publish-downloads.sh [run-id]     (default: the latest successful run on main)
 set -euo pipefail
 cd "$(dirname "$0")/.."
-repo=joyfulmake/locatorzero
+# Installers are built in the public source repo (free CI minutes, and anyone can see what each build came from).
+repo=${REPO:-joyfulmake/locatorzero-source}
 run=${1:-$(gh run list --repo "$repo" --workflow installers.yml --branch main --status success --limit 1 --json databaseId --jq '.[0].databaseId')}
 sha=$(gh run view "$run" --repo "$repo" --json headSha --jq .headSha)
 

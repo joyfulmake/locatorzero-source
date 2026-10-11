@@ -11,6 +11,9 @@ permissions:
 
 jobs:
   test:
+    # Builds run only in the public source repo (joyfulmake/locatorzero-source), where CI minutes are free and anyone
+    # can match an installer to the source it came from. In the private repo this workflow is skipped.
+    if: github.repository == 'joyfulmake/locatorzero-source'
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4

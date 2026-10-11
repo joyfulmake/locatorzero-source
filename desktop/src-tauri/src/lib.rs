@@ -1,7 +1,9 @@
-//! LocatorZero desktop core. Every command here reads; the only write is the opt-in tabs host registration.
+//! LocatorZero desktop core. Every command here reads, with two exceptions the user starts: the opt-in tabs host
+//! registration, and Clean up, which moves files the user ticked and confirmed to the system's bin (see cleanup.rs).
 //! No networking crate is a dependency (see desktop/check-no-network.sh), and the only socket is a private Unix
 //! socket to the tabs extension's host (see tabs.rs). Results carry a location and metadata only.
 
+mod cleanup;
 mod hit;
 mod licence;
 mod places;
@@ -95,6 +97,53 @@ fn place_progress(path: String) -> (usize, bool) {
 #[tauri::command]
 fn forget() {
     sources::files::forget();
+    cleanup::forget();
+}
+
+/// Clean up: find duplicate and large files in one place the user chose and consented to.
+#[tauri::command]
+async fn cleanup_scan(app: tauri::AppHandle, path: String) -> Result<cleanup::ScanOut, String> {
+    if !licence(&app).status().allowed() {
+        return Err("Your free trial has ended. Enter a licence key in the sidebar to keep using Clean up.".into());
+    }
+    tauri::async_runtime::spawn_blocking(move || cleanup::scan(std::path::Path::new(&path))).await.map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+fn cleanup_progress() -> cleanup::Progress {
+    cleanup::progress()
+}
+
+/// Stop a running scan and drop its results.
+#[tauri::command]
+fn cleanup_stop() {
+    cleanup::forget();
+}
+
+/// Move files the user ticked and confirmed to the system's bin. Only files from the latest scan qualify, and a
+/// duplicate moves only if it is still byte-for-byte the same as the copy being kept.
+#[tauri::command]
+async fn cleanup_trash(app: tauri::AppHandle, items: Vec<cleanup::TrashItem>) -> Result<cleanup::TrashOut, String> {
+    if !licence(&app).status().allowed() {
+        return Err("Your free trial has ended. Enter a licence key in the sidebar to keep using Clean up.".into());
+    }
+    tauri::async_runtime::spawn_blocking(move || cleanup::trash_with(&items, to_bin)).await.map_err(|e| e.to_string())
+}
+
+/// To the Recycle Bin (Windows) or Trash (macOS, Linux), where it can be restored. Never a permanent delete.
+fn to_bin(p: &std::path::Path) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    {
+        // The file manager API, not Finder scripting, so no automation permission prompt.
+        use trash::macos::{DeleteMethod, TrashContextExtMacos};
+        let mut ctx = trash::TrashContext::default();
+        ctx.set_delete_method(DeleteMethod::NsFileManager);
+        ctx.delete(p).map_err(|e| e.to_string())
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        trash::delete(p).map_err(|e| e.to_string())
+    }
 }
 
 async fn search_sources(query: String, sources: Vec<String>, limit: Option<usize>) -> LocateOut {
@@ -223,7 +272,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             locate, preview, reveal, status, setup_tabs, licence_status, licence_activate, licence_remove, places, pick_folder, place_progress,
-            forget
+            forget, cleanup_scan, cleanup_progress, cleanup_stop, cleanup_trash
         ])
         .run(tauri::generate_context!())
         .expect("error while running LocatorZero");

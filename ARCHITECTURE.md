@@ -18,11 +18,11 @@ flowchart LR
     Core["Rust core<br/>no networking library"]
     UI -- "in-process IPC" --> Core
   end
-  subgraph OS["This computer, read-only"]
+  subgraph OS["This computer (read-only, except Clean up after you confirm)"]
     IDX["System file index<br/>plocate · Spotlight · Windows Search"]
     HIST["Browser history files<br/>opened mode=ro, immutable"]
     PROC["Process list"]
-    FILES["Files<br/>(Preview only, ≤ 64 KB)"]
+    FILES["Files<br/>(Preview ≤ 64 KB · Clean up samples,<br/>full compare and move to bin on confirm)"]
   end
   EXT["LocatorZero Tabs<br/>browser extension"] -- "native messaging<br/>(local pipe)" --> HOST["Tab host<br/>(same binary, started by the browser)"]
   HOST -- "private Unix socket<br/>0700 folder" --> Core
@@ -75,7 +75,7 @@ flowchart LR
 |---|---|---|
 | App → internet | Web: CSP `connect-src 'none'`. Desktop: CSP allows only Tauri IPC, and no networking crate is compiled in | Live probe in the footer; `npm test`; `desktop/check-no-network.sh` (242 crates, none networked) |
 | You → each place | A consent dialog before the first search of this computer and before any drive or folder; the folder picker is opened by the core, so the interface holds no file-system permission | Web tests: "choosing a folder asks for consent first"; `check-no-network.sh` fails if the interface is granted fs, shell or http permissions |
-| App → your files | Read-only APIs only; preview refuses devices, pipes and folders | Unit tests; history file byte-identical after a read |
+| App → your files | Search and preview use read-only APIs; preview refuses devices, pipes and folders. Clean up moves files to the system bin only for paths from its latest scan, after the user confirms, and only if a duplicate still matches the kept copy byte for byte; one copy always stays; symbolic links are never followed; system and app folders are never scanned | Unit tests (`cleanup.rs`); history file byte-identical after a read |
 | Other programs → the core's memory | Linux: `PR_SET_DUMPABLE=0`: no core dumps, no same-user reads | `tests/measure-desktop.sh` reports the core as unreadable |
 | Extension → app | Native messaging only to the registered host; socket in a 0700 folder, socket file 0600 | `tests/tabs_host.rs`, `tests/tabs-e2e.mjs` |
 | Licence | Ed25519 signature check offline; public key only in the app | Unit tests: forged, foreign and expired keys refused |

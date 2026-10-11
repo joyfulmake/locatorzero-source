@@ -1,0 +1,26 @@
+# Records the demo video (MP4 + GIF) on a clean runner, from the web app in this commit. Run it by hand:
+#   gh workflow run demo-video.yml   then download the "demo-video" artifact.
+name: demo-video
+on:
+  workflow_dispatch:
+jobs:
+  record:
+    if: github.repository == 'joyfulmake/locatorzero-source'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: sudo apt-get update -q && sudo apt-get install -y -q ffmpeg fonts-noto-color-emoji
+      - name: Record
+        env:
+          CHROMIUM: /usr/bin/google-chrome
+          FFMPEG: ffmpeg
+        run: node tools/record-demo.mjs
+      - run: ffprobe -v error -show_entries format=duration -of csv=p=0 docs/media/locatorzero-demo.mp4
+      - uses: actions/upload-artifact@v4
+        with:
+          name: demo-video
+          path: docs/media/locatorzero-demo.*

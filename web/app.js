@@ -751,6 +751,291 @@
     }).join('');
   }
 
+  // ---------- clean up ----------
+  // Duplicate and largest files in one place the user chose. Desktop: the Rust core lists, compares and, only after
+  // the user confirms, moves files to the system's bin (cleanup.rs). Web: a made-up demo computer; nothing is moved.
+  var CL = { scan: null, sel: {}, group: {}, size: {}, skipped: [], tab: 'dup', timer: null, token: null, places: [] };
+  var CL_MAP_GROUPS = 40, CL_LIST_GROUPS = 200;
+  function binName() { return /Win/.test(navigator.platform || '') ? 'Recycle Bin' : 'Trash'; }
+  function applyBinNames() {
+    var bin = binName();
+    Array.prototype.forEach.call(document.querySelectorAll('.cl-bin'), function (e) { e.textContent = bin; });
+  }
+  function demoScan() {
+    var H = '/Users/alex', MB = 1048576, GB = 1024 * MB, T = window.LZ_DEMO ? window.LZ_DEMO.now : Date.now(), D = 864e5;
+    function f(p, size, daysAgo) { return { path: p, name: lastSeg(p), size: Math.round(size), t: T - daysAgo * D }; }
+    var sets = [
+      [1.42 * GB, [H + '/Downloads/wedding-photos.zip', '/Volumes/Backup/Archive/wedding-photos.zip']],
+      [182 * MB, [H + '/Movies/project-atlas-demo.mp4', H + '/Desktop/project-atlas-demo.mp4', H + '/Downloads/project-atlas-demo (1).mp4']],
+      [68 * MB, [H + '/Downloads/ZoomInstaller.pkg', H + '/Downloads/ZoomInstaller (1).pkg']],
+      [24 * MB, [H + '/Pictures/WhatsApp/VID-20260314-WA0007.mp4', H + '/Downloads/VID-20260314-WA0007.mp4', '/Volumes/Backup/Phone/VID-20260314-WA0007.mp4']],
+      [4.2 * MB, [H + '/Pictures/2025/Goa/IMG_2041.jpg', H + '/Downloads/IMG_2041.jpg', '/Volumes/Backup/Photos/Goa/IMG_2041.jpg']],
+      [1.1 * MB, [H + '/Documents/Taxes/tax-return-2025.pdf', H + '/Downloads/tax-return-2025.pdf', H + '/Downloads/tax-return-2025 (1).pdf']]
+    ];
+    var groups = sets.map(function (s, i) {
+      var files = s[1].map(function (p, j) { return f(p, s[0], 400 - i * 40 - j * 9); });
+      return { size: files[0].size, wasted: files[0].size * (files.length - 1), files: files };
+    });
+    var largest = [f('/Volumes/Backup/vm/windows11.vhdx', 22 * GB, 300), f(H + '/Downloads/Xcode_16.xip', 3.1 * GB, 120), f(H + '/Movies/family-reunion-2024.mov', 2.3 * GB, 500)];
+    groups.forEach(function (g) { g.files.forEach(function (x) { largest.push(x); }); });
+    largest.sort(function (a, b) { return b.size - a.size; });
+    return { root: 'Demo computer', files: 48213, groups: groups, wasted: groups.reduce(function (a, g) { return a + g.wasted; }, 0),
+      largest: largest.slice(0, 12), ms: 1240, truncated: false };
+  }
+  function showClean(step) { $('clStart').hidden = step !== 'start'; $('clBusy').hidden = step !== 'busy'; $('clResults').hidden = step !== 'results'; }
+  function clPlaceBtn(id, ico, title, sub) {
+    return '<button class="cl-place" data-place="' + id + '"><span class="ico" aria-hidden="true">' + ico + '</span><span><b>' + esc(title) + '</b><small>' + esc(sub) + '</small></span></button>';
+  }
+  function renderCleanPlaces() {
+    var box = $('clPlaces');
+    if (!NATIVE) { box.innerHTML = clPlaceBtn('demo', '🖥️', 'Demo computer', 'Made-up files: try it safely'); return; }
+    box.innerHTML = '<p class="small muted">Finding your places…</p>';
+    NATIVE.places().then(function (places) {
+      CL.places = places;
+      box.innerHTML = places.map(function (p, i) { return clPlaceBtn(i, PLACE_ICO[p.kind] || '📁', p.label, p.path); }).join('') +
+        clPlaceBtn('pick', '📂', 'Choose a folder…', 'Your system\'s folder picker');
+    }, function () { box.innerHTML = clPlaceBtn('pick', '📂', 'Choose a folder…', 'Your system\'s folder picker'); });
+  }
+  function openClean() {
+    setSidebar(false);
+    applyBinNames();
+    $('ccYes').textContent = 'Move to ' + binName();
+    if (!CL.scan) { showClean('start'); renderCleanPlaces(); } else renderClean();
+    if (!$('clean').open) $('clean').showModal();
+  }
+  function askCleanConsent(place) {
+    var key = 'clean:' + place.path;
+    if (state.consented[key]) return startScan(place);
+    askConsent({
+      key: key, ico: PLACE_ICO[place.kind] || '📁', where: place.path, promise: false, yes: 'Allow and look',
+      title: 'Look for duplicates in “' + place.label + '”?',
+      reads: ['<b>File names, sizes and dates</b> in this place, listed into memory only. System and app folders are skipped',
+        '<b>For files of the same size, three small samples of each</b> (48 KB in all), read in memory to compare them',
+        '<b>Nothing is changed.</b> Files move to the ' + binName() + ' only after you tick them and confirm']
+    }).then(function (ok) { if (ok) startScan(place); });
+  }
+  function startScan(place) {
+    var t = CL.token = {};
+    showClean('busy'); $('clBusyText').textContent = 'Listing files…';
+    clearInterval(CL.timer);
+    CL.timer = setInterval(function () {
+      NATIVE.cleanup.progress().then(function (p) {
+        if (CL.token !== t) return;
+        $('clBusyText').textContent = p.phase === 2 ? 'Comparing ' + nf(p.compared) + ' of ' + nf(p.to_compare) + ' files that share a size…'
+          : 'Listing files… ' + nf(p.files) + ' so far';
+      }, function () {});
+    }, 300);
+    NATIVE.cleanup.scan(place.path).then(function (s) {
+      if (CL.token !== t) return;
+      clearInterval(CL.timer); setScan(s, place.label);
+    }, function (e) {
+      if (CL.token !== t) return;
+      clearInterval(CL.timer); showClean('start'); renderCleanPlaces();
+      toast(String(e) === 'stopped' ? 'Stopped.' : 'Could not look there: ' + e);
+    });
+  }
+  function runDemoScan() {
+    var t = CL.token = {};
+    showClean('busy');
+    var steps = ['Listing files… 18,402 so far', 'Listing files… 48,213 so far', 'Comparing 211 of 486 files that share a size…'];
+    steps.forEach(function (s, i) { setTimeout(function () { if (CL.token === t) $('clBusyText').textContent = s; }, i * 450); });
+    setTimeout(function () { if (CL.token === t) setScan(demoScan(), 'the demo computer'); }, 1400);
+  }
+  function stopScan() {
+    CL.token = null; clearInterval(CL.timer);
+    if (NATIVE) NATIVE.cleanup.stop().catch(function () {});
+    showClean('start'); renderCleanPlaces();
+  }
+  function indexScan() {
+    CL.group = {}; CL.size = {};
+    CL.scan.groups.forEach(function (g, gi) { g.files.forEach(function (f) { CL.group[f.path] = gi; CL.size[f.path] = f.size; }); });
+    CL.scan.largest.forEach(function (f) { CL.size[f.path] = f.size; });
+  }
+  function setScan(s, label) {
+    CL.scan = s; CL.label = label; CL.sel = {}; CL.skipped = []; CL.freed = 0;
+    indexScan();
+    showClean('results');
+    setCleanTab(s.groups.length ? 'dup' : 'big');
+  }
+  // The copy that stays: the oldest one not ticked.
+  function keeperOf(gi) {
+    var files = CL.scan.groups[gi].files;
+    for (var i = 0; i < files.length; i++) if (!CL.sel[files[i].path]) return files[i].path;
+    return null;
+  }
+  function toggleSel(path, on) {
+    var gi = CL.group[path];
+    if (on && gi != null) {
+      var left = CL.scan.groups[gi].files.filter(function (f) { return !CL.sel[f.path] && f.path !== path; }).length;
+      if (!left) { toast('One copy always stays. Untick another copy first.'); return false; }
+    }
+    if (on) CL.sel[path] = true; else delete CL.sel[path];
+    return true;
+  }
+  function selBytes(paths) { return paths.reduce(function (a, p) { return a + (CL.size[p] || 0); }, 0); }
+  function clRow(f, keep, showSize) {
+    var on = !!CL.sel[f.path];
+    return '<label class="cl-row' + (on ? ' ticked' : '') + '"><input type="checkbox" data-p="' + esc(f.path) + '"' + (on ? ' checked' : '') +
+      ' aria-label="Tick ' + esc(f.path) + '"><span class="cl-path">' + esc(f.path) + (keep ? '<em class="cl-keep">stays</em>' : '') + '</span><small>' +
+      (showSize ? fmtSize(f.size) + ' · ' : '') + new Date(f.t).toLocaleDateString() + '</small></label>';
+  }
+  function setCleanTab(tab) {
+    CL.tab = tab;
+    [['dup', 'clTabDup', 'clDup'], ['map', 'clTabMap', 'clMapWrap'], ['big', 'clTabBig', 'clBig']].forEach(function (x) {
+      $(x[1]).setAttribute('aria-selected', String(x[0] === tab)); $(x[2]).hidden = x[0] !== tab;
+    });
+    renderClean();
+  }
+  function renderClean() {
+    var s = CL.scan; if (!s) return;
+    var n = s.groups.length;
+    var sum = n ? '<b>' + nf(n) + ' set' + (n === 1 ? '' : 's') + ' of duplicates</b> in ' + esc(CL.label) + ': <b>' + fmtSize(s.wasted) + '</b> can be freed by keeping one copy of each.'
+      : CL.freed ? '<b>All duplicates cleaned up</b> in ' + esc(CL.label) + ': ' + fmtSize(CL.freed) + ' freed 🎉'
+      : '<b>No duplicates found</b> in ' + esc(CL.label) + ' 🎉 The Largest files tab shows what takes the most space.';
+    if (CL.freed && n) sum += ' <b>' + fmtSize(CL.freed) + ' freed so far.</b>';
+    sum += ' <span class="small">' + nf(s.files) + ' files checked in ' + (s.ms / 1000).toFixed(1) + ' s' + (s.truncated ? ', stopping at 2 million' : '') + '.</span>';
+    if (CL.skipped.length) sum += '<span class="cl-skipped">' + CL.skipped.length + ' not moved: ' +
+      esc(CL.skipped.slice(0, 3).map(function (x) { return lastSeg(x[0]) + ' (' + x[1] + ')'; }).join('; ')) + (CL.skipped.length > 3 ? '…' : '') + '</span>';
+    $('clSummary').innerHTML = sum;
+    if (CL.tab === 'dup') {
+      var pane = $('clDup'), top = pane.scrollTop;
+      pane.innerHTML = !n ? '<div class="cl-empty">No file is stored twice here.</div>' : s.groups.slice(0, CL_LIST_GROUPS).map(function (g, gi) {
+        var keep = keeperOf(gi);
+        return '<div class="cl-group"><div class="cl-gh"><b>' + esc(g.files[0].name) + '</b><span>' + g.files.length + ' copies · ' + fmtSize(g.size) +
+          ' each</span><span class="cl-free">frees ' + fmtSize(g.wasted) + '</span></div>' + g.files.map(function (f) { return clRow(f, f.path === keep, false); }).join('') + '</div>';
+      }).join('') + (n > CL_LIST_GROUPS ? '<div class="cl-empty small">Showing the ' + CL_LIST_GROUPS + ' sets that free the most space.</div>' : '');
+      pane.scrollTop = top;
+    } else if (CL.tab === 'big') {
+      var bp = $('clBig'), btop = bp.scrollTop;
+      bp.innerHTML = s.largest.length ? s.largest.map(function (f) { return clRow(f, false, true); }).join('') : '<div class="cl-empty">No files here.</div>';
+      bp.scrollTop = btop;
+    } else renderCleanMap();
+    var paths = Object.keys(CL.sel);
+    $('clSel').textContent = paths.length ? paths.length + ' file' + (paths.length === 1 ? '' : 's') + ' ticked · ' + fmtSize(selBytes(paths)) : 'Nothing ticked';
+    $('clGo').disabled = !paths.length;
+    $('clGo').textContent = 'Move to ' + binName();
+    $('clAuto').hidden = !n;
+  }
+  // One lane per duplicated file, branching to every folder that holds a copy. Green stays, red is ticked.
+  function renderCleanMap() {
+    var svg = $('clMap');
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+    var groups = CL.scan.groups.slice(0, CL_MAP_GROUPS);
+    if (!groups.length) { svg.setAttribute('width', 0); svg.setAttribute('height', 0); $('clMapNote').textContent = 'No duplicates to map.'; return; }
+    var items = [], keep = {}, laneGi = {};
+    groups.forEach(function (g, gi) {
+      keep[keeperOf(gi)] = true;
+      var lane = (gi + 1) + '. ' + g.files[0].name;
+      laneGi[lane] = gi;
+      g.files.forEach(function (f) { items.push({ p: f.path, n: f.name, src: lane }); });
+    });
+    var tree = buildTree(items), ROW = 24, COL = 170, PADX = 22, y = 12, maxDepth = 0, lanes = [];
+    (function layout(n, depth) {
+      n.depth = depth; if (depth > maxDepth) maxDepth = depth;
+      if (n.item) { n.y = y; y += ROW; return; }
+      var start = y;
+      if (n.lane) y += 40; // the lane title gets its own line, clear of the folder names below it
+      n.order.forEach(function (k) { layout(n.kids[k], depth + 1); });
+      var first = n.kids[n.order[0]], last = n.kids[n.order[n.order.length - 1]];
+      n.y = !n.order.length ? y : n.lane ? first.y : (first.y + last.y) / 2;
+      if (n.lane) { lanes.push({ n: n, y0: start, y1: y + 2 }); y += 12; }
+    })(tree, -1);
+    var width = PADX * 2 + maxDepth * COL + 300, height = y + 8;
+    svg.setAttribute('width', width); svg.setAttribute('height', height); svg.setAttribute('viewBox', '0 0 ' + width + ' ' + height);
+    var gL = svgEl('g', {}), gE = svgEl('g', {}), gN = svgEl('g', {});
+    svg.appendChild(gL); svg.appendChild(gE); svg.appendChild(gN);
+    lanes.forEach(function (l) {
+      var g = CL.scan.groups[laneGi[l.n.label]];
+      gL.appendChild(svgEl('rect', { 'class': 'lane-bg', x: 6, y: l.y0, width: width - 12, height: l.y1 - l.y0, rx: 12 }));
+      var title = svgEl('text', { 'class': 'lane-label', x: 18, y: l.y0 + 18 }, trunc(l.n.label, 60) + '  ·  ' + g.files.length + ' copies, ' + fmtSize(g.size) + ' each  ·  ');
+      title.appendChild(svgEl('tspan', { 'class': 'count' }, 'frees ' + fmtSize(g.wasted)));
+      gL.appendChild(title);
+    });
+    function xOf(n) { return PADX + n.depth * COL; }
+    (function draw(n) {
+      n.order.forEach(function (k) {
+        var c = n.kids[k];
+        if (n.depth >= 0) {
+          var x1 = xOf(n) + 6, y1 = n.y, x2 = xOf(c) - 6, y2 = c.y, mx = (x1 + x2) / 2;
+          gE.appendChild(svgEl('path', { 'class': 'edge', d: 'M' + x1 + ',' + y1 + ' C' + mx + ',' + y1 + ' ' + mx + ',' + y2 + ' ' + x2 + ',' + y2 }));
+        }
+        draw(c);
+      });
+      if (n.depth < 0) return;
+      var x = xOf(n), g;
+      if (n.item) {
+        var p = n.item.p, on = !!CL.sel[p], stays = !!keep[p];
+        g = svgEl('g', { 'class': 'node leaf' + (on ? ' ticked' : '') + (stays ? ' keep' : ''), tabindex: 0, role: 'checkbox', 'aria-checked': String(on), 'data-p': p,
+          'aria-label': (on ? 'Ticked: ' : stays ? 'Stays: ' : '') + p });
+        g.appendChild(svgEl('circle', { cx: x, cy: n.y, r: 6 }));
+        g.appendChild(svgEl('text', { x: x + 12, y: n.y + 4 }, trunc(n.label, 40) + (stays ? '  (stays)' : '')));
+        g.appendChild(svgEl('title', {}, p));
+      } else if (n.lane) {
+        g = svgEl('g', { 'class': 'node' });
+        g.appendChild(svgEl('circle', { 'class': 'lane-dot', cx: x, cy: n.y, r: 7 }));
+      } else {
+        g = svgEl('g', { 'class': 'node' });
+        g.appendChild(svgEl('circle', { 'class': 'k-folder', cx: x, cy: n.y, r: 5 }));
+        g.appendChild(svgEl('text', { x: x + 11, y: n.y - 7 }, trunc(n.label, 22)));
+        g.appendChild(svgEl('title', {}, n.label));
+      }
+      gN.appendChild(g);
+    })(tree);
+    $('clMapNote').textContent = 'Each lane is one file stored more than once, branching to every folder that holds a copy. Green stays; click a copy to tick or untick it.' +
+      (CL.scan.groups.length > CL_MAP_GROUPS ? ' Showing the ' + CL_MAP_GROUPS + ' sets that free the most space.' : '');
+  }
+  function autoTick() {
+    var count = 0;
+    CL.scan.groups.forEach(function (g) {
+      g.files.forEach(function (f, i) { if (i === 0) delete CL.sel[f.path]; else if (!CL.sel[f.path]) { CL.sel[f.path] = true; count++; } });
+    });
+    renderClean();
+    toast(count ? 'Ticked ' + count + ' extra cop' + (count === 1 ? 'y' : 'ies') + '. The oldest copy of each file stays.' : 'Every extra copy is already ticked.');
+  }
+  function confirmClean() {
+    var paths = Object.keys(CL.sel); if (!paths.length) return;
+    $('ccTitle').textContent = 'Move ' + paths.length + ' file' + (paths.length === 1 ? '' : 's') + ' to the ' + binName() + '?';
+    $('ccText').textContent = 'This frees about ' + fmtSize(selBytes(paths)) + '. Please check the list:';
+    $('ccList').innerHTML = paths.slice(0, 8).map(function (p) { return '<li>' + esc(p) + '</li>'; }).join('') +
+      (paths.length > 8 ? '<li>…and ' + (paths.length - 8) + ' more</li>' : '');
+    $('clConfirm').showModal();
+  }
+  function dropFromScan(moved) {
+    var gone = {}; moved.forEach(function (p) { gone[p] = true; delete CL.sel[p]; });
+    var s = CL.scan;
+    s.groups = s.groups.map(function (g) {
+      var files = g.files.filter(function (f) { return !gone[f.path]; });
+      return { size: g.size, wasted: g.size * Math.max(files.length - 1, 0), files: files };
+    }).filter(function (g) { return g.files.length > 1; });
+    s.wasted = s.groups.reduce(function (a, g) { return a + g.wasted; }, 0);
+    s.largest = s.largest.filter(function (f) { return !gone[f.path]; });
+    indexScan();
+  }
+  function doClean() {
+    var paths = Object.keys(CL.sel);
+    var items = paths.map(function (p) { var gi = CL.group[p]; return { path: p, keep: gi == null ? null : keeperOf(gi) }; });
+    var bin = binName();
+    function done(out) {
+      CL.skipped = out.skipped || [];
+      CL.freed += out.freed || 0;
+      CL.skipped.forEach(function (x) { delete CL.sel[x[0]]; });
+      dropFromScan(out.moved);
+      renderClean();
+      return out;
+    }
+    if (!NATIVE) {
+      done({ moved: paths, skipped: [], freed: selBytes(paths) });
+      toast('Demo: in the desktop app, ' + paths.length + ' file' + (paths.length === 1 ? '' : 's') + ' would now be in the ' + bin + ' 🧹');
+      return;
+    }
+    $('clGo').disabled = true; $('clGo').textContent = 'Checking and moving…';
+    NATIVE.cleanup.trash(items).then(function (out) {
+      done(out);
+      toast(out.moved.length ? 'Moved ' + out.moved.length + ' file' + (out.moved.length === 1 ? '' : 's') + ' to the ' + bin + ' · ' + fmtSize(out.freed) + ' freed 🧹'
+        : 'Nothing was moved. The summary says why.');
+    }, function (e) { toast('Could not move files: ' + e); renderClean(); });
+  }
+
   // ---------- store ----------
   // Checkout opens in the browser on Lemon Squeezy's site; this app never connects anywhere itself.
   // Keep live false until the store is activated: until then the buttons say "Store opens soon".
@@ -977,6 +1262,8 @@
       $('cWhere').hidden = !o.where;
       $('cReads').innerHTML = o.reads.map(function (r) { return '<li>' + r + '</li>'; }).join('');
       $('cRememberRow').hidden = !o.remember;
+      $('cPromise').hidden = o.promise === false;
+      $('cYes').textContent = o.yes || 'Allow and search';
       $('cRemember').checked = true;
       var d = $('consent');
       function done(ok) {
@@ -1137,6 +1424,9 @@
     state.sessionPlaces = []; state.consented = {};
     clearInterval(state.placeTimer);
     if (NATIVE) NATIVE.forget().catch(function () {});
+    CL.token = null; clearInterval(CL.timer); CL.scan = null; CL.sel = {};
+    if ($('clean').open) $('clean').close();
+    if ($('clConfirm').open) $('clConfirm').close();
     state.q = ''; $('q').value = '';
     state.reads = 0; state.readBytes = 0;
     closePreview();
@@ -1217,7 +1507,7 @@
   }
 
   // ---------- welcome tour ----------
-  var slide = 0, SLIDES = 4;
+  var slide = 0, SLIDES = 5;
   function showSlide(i) {
     slide = Math.max(0, Math.min(SLIDES - 1, i));
     document.querySelectorAll('.w-slide').forEach(function (s) { s.hidden = +s.dataset.i !== slide; });
@@ -1342,6 +1632,41 @@
     }
   });
   $('plansSide').addEventListener('click', function () { openPlans(); });
+  applyBinNames();
+  $('cleanSide').addEventListener('click', openClean);
+  $('clClose').addEventListener('click', function () { $('clean').close(); });
+  $('clPlaces').addEventListener('click', function (e) {
+    var b = e.target.closest('.cl-place'); if (!b) return;
+    var id = b.dataset.place;
+    if (id === 'demo') return runDemoScan();
+    if (id === 'pick') return NATIVE.pickFolder().then(function (place) { if (place) askCleanConsent(place); }, function (err) { toast('Could not open the folder picker: ' + err); });
+    askCleanConsent(CL.places[+id]);
+  });
+  $('clStop').addEventListener('click', stopScan);
+  $('clAgain').addEventListener('click', function () { CL.scan = null; CL.sel = {}; showClean('start'); renderCleanPlaces(); });
+  $('clTabDup').addEventListener('click', function () { setCleanTab('dup'); });
+  $('clTabMap').addEventListener('click', function () { setCleanTab('map'); });
+  $('clTabBig').addEventListener('click', function () { setCleanTab('big'); });
+  ['clDup', 'clBig'].forEach(function (id) {
+    $(id).addEventListener('change', function (e) {
+      var t = e.target; if (!t.dataset || !t.dataset.p) return;
+      if (!toggleSel(t.dataset.p, t.checked)) t.checked = false;
+      renderClean();
+    });
+  });
+  function clMapToggle(e) {
+    var g = e.target.closest && e.target.closest('#clMap .leaf'); if (!g) return;
+    if (e.type === 'keydown') { if (e.key !== 'Enter' && e.key !== ' ') return; e.preventDefault(); }
+    var p = g.getAttribute('data-p');
+    toggleSel(p, !CL.sel[p]); renderClean();
+    var again = document.querySelector('#clMap .leaf[data-p="' + (window.CSS && CSS.escape ? CSS.escape(p) : p) + '"]'); if (again) again.focus();
+  }
+  $('clMap').addEventListener('click', clMapToggle);
+  $('clMap').addEventListener('keydown', clMapToggle);
+  $('clAuto').addEventListener('click', autoTick);
+  $('clGo').addEventListener('click', confirmClean);
+  $('ccNo').addEventListener('click', function () { $('clConfirm').close(); });
+  $('ccYes').addEventListener('click', function () { $('clConfirm').close(); doClean(); });
   $('pClose').addEventListener('click', function () { $('plans').close(); });
   $('plans').addEventListener('click', function (e) { if (e.target === $('plans')) $('plans').close(); });
   $('pActivate').addEventListener('click', activateKey);
@@ -1409,6 +1734,7 @@
   $('wBack').addEventListener('click', function () { showSlide(slide - 1); });
   $('wSkip').addEventListener('click', closeWelcome);
   $('wStart').addEventListener('click', closeWelcome);
+  $('wClean').addEventListener('click', function () { lsSet('lz.welcomed', '1'); $('welcome').close(); openClean(); });
   $('wFolder').addEventListener('click', function () { closeWelcome(); chooseFolderWeb(); });
   $('wTry').addEventListener('click', function () { closeWelcome(); $('tryDemo').click(); });
   $('wNever').addEventListener('change', function () { lsSet('lz.welcomeNever', $('wNever').checked ? '1' : '0'); });

@@ -1,4 +1,4 @@
-// Records a ~55-second demo of the web app, then makes an MP4 (for Product Hunt, YouTube, X) and a GIF (for README,
+// Records a ~75-second demo of the web app, then makes an MP4 (for Product Hunt, YouTube, X) and a GIF (for README,
 // Reddit, the download page). Run: node tools/record-demo.mjs   (needs FFMPEG=/path/to/ffmpeg)
 // Microsoft Store trailer: TRAILER=1 node tools/record-demo.mjs  → 1920×1080 MP4 with a silent audio track, plus a
 // 1920×1080 thumbnail, in docs/store-assets/.
@@ -51,6 +51,7 @@ await p.goto(base);
 await wait(3800);                                   // tour slide 1 with its animated example
 await click('#wNext', 2600);                        // privacy promises
 await click('#wNext', 2600);                        // comparison
+await click('#wNext', 3400);                        // new: Clean up
 await click('#wNext', 1200);                        // try it now
 await click('#wTry', 2600);                         // demo search: budget
 await click('#q', 200);
@@ -69,6 +70,14 @@ await click('#vClose', 600);
 await click('#scopeBtn', 2200);                     // choose where to search
 await p.keyboard.press('Escape'); await wait(400);
 await p.fill('#q', ''); await typeSlow('invoice'); await wait(1200);
+await click('#menuBtn', 900);                       // Clean up, from the menu
+await click('#cleanSide', 1400);
+await click('.cl-place[data-place=demo]', 2600);    // duplicates found in seconds
+await click('#clAuto', 2000);                       // tick every extra copy; one copy always stays
+await click('#clTabMap', 3400);                     // every copy on one map
+await click('#clGo', 3200);                         // confirm first
+await click('#ccYes', 2600);
+await click('#clClose', 600);
 await click('#themeBtn', 2600);                     // dark mode
 await ctx.close();
 await browser.close();

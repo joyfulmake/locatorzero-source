@@ -1,6 +1,6 @@
 # Roadmap
 
-Status as of 8 October 2026. ✅ done · 🔜 next · 🧭 later · ⚖️ needs a decision from the owner.
+Status as of 11 October 2026. ✅ done · 🔜 next · 🧭 later · ⚖️ needs a decision from the owner.
 
 ## v0.1: built and tested ✅
 
@@ -15,6 +15,18 @@ Status as of 8 October 2026. ✅ done · 🔜 next · 🧭 later · ⚖️ needs
 - Installers built by CI: `.deb`, AppImage, `.msi`, `.exe`, `.dmg` (Apple Silicon and Intel).
 - Measured against the NFR budgets, misses included ([docs/measurements.md](docs/measurements.md)).
 - LICENSE (source-available, draft), PRIVACY.md, SECURITY.md, architecture, pricing and legal checklists.
+
+## v0.2: Clean up (built; testing on Windows before release) 🔜
+
+- **Duplicates and largest files** in a place the user chooses and allows: list or map of every copy, "Tick all
+  extra copies", sizes freed. Web app: the same flow on demo files, with nothing moved.
+- **Safe by construction** (`desktop/src-tauri/src/cleanup.rs`): names and sizes first; three 16 KB samples only for
+  files that share a size; system, app and hidden folders skipped; symbolic links never followed. Nothing changes
+  until the user confirms in a second window. Then each duplicate is compared byte for byte with the kept copy and
+  moved to the Recycle Bin or Trash; one copy always stays; only paths from the latest scan can be moved.
+- Measured on this machine: a home folder of 178,000 files scanned in 8.4 s, a 276,000-file folder in 8.6 s.
+- Next for Clean up: leftovers (installers for apps already installed, empty folders), old downloads, and
+  similar photos (shared with the mobile plan below).
 
 ## Before selling: launch checklist 🔜
 
@@ -94,8 +106,14 @@ mistake can be undone. Nothing is ever deleted outside the items you ticked.
 
 ### Open questions
 
-- Pricing: same licence across desktop and mobile, or a separate low-priced mobile plan through Google Play and the
-  App Store billing (which both stores require for in-app purchases)?
-- Ship the cleanup engine (duplicates, large files, leftovers) on **desktop first**: same code, testable today, and
-  useful to current users before the mobile apps exist.
+- How to sell in the app stores: Google Play and the App Store require their own billing for purchases made inside
+  the app (and take a 15% commission for small developers), so the mobile apps either sell through store billing at
+  the same prices, or accept a key bought on our site where the store rules allow it.
+
+### Decided
+
+- **Mobile pricing is the same as desktop (11 Oct 2026):** 90 days free, then $3/month, $25/year or $35 lifetime
+  (version 1). Phones now hold as much as many computers, and with USB (OTG) drives they reach just as many places,
+  so the value is the same.
+- **Clean up ships on desktop first (11 Oct 2026):** the same engine powers the phone apps later. Built in v0.2.
 

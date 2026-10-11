@@ -60,6 +60,12 @@
     </section>
 
     <section class="side-sec">
+      <h3>Clean up</h3>
+      <p class="muted small">Find files stored twice and the biggest files. Nothing is removed until you tick files and confirm.</p>
+      <button class="btn btn-soft wide" id="cleanSide">Find duplicates &amp; free space</button>
+    </section>
+
+    <section class="side-sec">
       <h3>Filter by kind</h3>
       <div class="chips" id="kindChips"></div>
       <h3 class="mt">Modified</h3>
@@ -185,7 +191,7 @@
     <div class="trust-items">
       <span class="trust-item" id="tNet" title="This app is blocked from the internet. The check runs live when the page loads."><i class="dot"></i><span class="lg">Nothing sent:</span><span class="sm">Nothing sent</span> <b class="lg">checking…</b></span>
       <span class="trust-item" title="Searches, results and previews are never written to disk."><i class="dot ok"></i><span class="lg">Searches never saved</span><span class="sm">Never saved</span></span>
-      <span class="trust-item" title="LocatorZero never changes, moves or deletes your files."><i class="dot ok"></i><span class="lg">Files never changed</span><span class="sm">Read-only</span></span>
+      <span class="trust-item" title="LocatorZero never changes your files. Clean up moves a file to the bin only after you tick it and confirm."><i class="dot ok"></i><span class="lg">Files changed only with your OK</span><span class="sm">Your OK first</span></span>
       <span class="trust-item" id="tIdle" title="After 5 minutes without use, your searches, results, previews and added folders are cleared from memory."><i class="dot ok"></i><span class="lg">Searches clear after 5 min idle</span><span class="sm">Clears in 5 min</span></span>
     </div>
     <div class="trust-right">
@@ -225,7 +231,7 @@
         <div class="w-cards">
           <div class="w-card"><span class="w-card-ico">📵</span><div><b>Nothing sent</b><p>No account, no cloud, no tracking. The app is blocked from the internet, and the footer proves it live.</p></div></div>
           <div class="w-card"><span class="w-card-ico">🧹</span><div><b>Nothing kept</b><p>What you search stays in memory only. It clears when you close the app, or after 5 minutes of no use.</p></div></div>
-          <div class="w-card"><span class="w-card-ico">👀</span><div><b>Nothing changed</b><p>It reads names and dates only. It looks inside a file only when you press Preview, and then only the first 64 KB.</p></div></div>
+          <div class="w-card"><span class="w-card-ico">👀</span><div><b>Nothing changed without you</b><p>It reads names and dates. It looks inside a file only when you press Preview (the first 64 KB), or to compare same-size files in Clean up. A file goes to the bin only after you confirm.</p></div></div>
         </div>
         <p class="muted small"><span class="web-only">In the browser it sees only folders you choose. The desktop app can search your whole computer.</span><span class="desktop-only">It uses the file index your computer already keeps, and reads browser history without changing it.</span></p>
       </section>
@@ -246,17 +252,34 @@
         <p class="muted small">Compared by type of tool, not by brand. Those tools are great at reading what is inside documents. LocatorZero does the other job: finding where things are, without copying them.</p>
       </section>
       <section class="w-slide" data-i="3" hidden>
+        <p class="w-kicker">New: Clean up 🧹</p>
+        <h2>Free up space, safely</h2>
+        <p class="w-lead">Find files stored more than once, and the biggest files, then see every copy on a map. You tick what goes, and one copy of every file always stays.</p>
+        <div class="w-demo" aria-hidden="true">
+          <div class="w-cl-head"><b>6 sets of duplicates</b> · <span>1.9 GB can be freed</span></div>
+          <ul class="w-demo-r">
+            <li><i class="r-ico k-arch">ZIP</i><span><b>wedding-photos.zip</b><small>Downloads · Backup › Archive</small></span><em>2 copies · frees 1.4 GB</em></li>
+            <li><i class="r-ico k-media">AV</i><span><b>project-atlas-demo.mp4</b><small>Movies · Desktop · Downloads</small></span><em>3 copies · frees 364 MB</em></li>
+            <li><i class="r-ico k-img">IMG</i><span><b>IMG_2041.jpg</b><small>Pictures › Goa · Downloads · Backup</small></span><em>3 copies · frees 8.4 MB</em></li>
+          </ul>
+        </div>
+        <ul class="w-places" aria-label="How Clean up keeps you safe">
+          <li>✅ Nothing moves until you confirm</li><li>🔍 Each copy is checked byte for byte first</li><li>🗑️ Files go to the <span class="cl-bin">Recycle Bin</span>, so you can undo</li>
+        </ul>
+      </section>
+      <section class="w-slide" data-i="4" hidden>
         <p class="w-kicker">Ready?</p>
         <h2>Try it now. It takes five seconds.</h2>
         <div class="w-actions">
           <button class="w-action web-only" id="wTry"><span>🔍</span><b>Try a demo search</b><small>See results for “budget” on a sample computer</small></button>
           <button class="w-action web-only" id="wFolder"><span>📁</span><b>Search my own folder</b><small>Pick a folder; it stays on your device</small></button>
           <button class="w-action desktop-only" id="wStart"><span>🔍</span><b>Start searching</b><small>Your files, browser history and running apps</small></button>
+          <button class="w-action" id="wClean"><span>🧹</span><b>Free up space</b><small>Find files stored twice, shown on a map</small></button>
         </div>
         <ul class="w-tips">
           <li><b>Locations</b> lists every path, <b>Map</b> draws them</li>
           <li><b>Preview</b> peeks inside one file</li>
-          <li><b>Top left menu:</b> sources, filters and privacy checks</li>
+          <li><b>Top left menu:</b> sources, filters, Clean up and privacy checks</li>
           <li><b>Top right:</b> light or dark switch, and <b>😊</b> brings this tour back</li>
         </ul>
       </section>
@@ -321,7 +344,7 @@
     <h2 id="cTitle">Allow LocatorZero to look here?</h2>
     <p class="c-where mono" id="cWhere"></p>
     <ul class="ticks" id="cReads"></ul>
-    <ul class="ticks c-promise">
+    <ul class="ticks c-promise" id="cPromise">
       <li><b>Never uploads, copies, moves or deletes anything.</b> The app is blocked from the internet.</li>
       <li><b>Forgets it all</b> when you close the app, press Wipe, or after 5 minutes of no use.</li>
       <li><b>Opens a file only when you press Preview</b>, and then reads at most its first 64 KB.</li>
@@ -331,6 +354,63 @@
     <div class="w-btns">
       <button class="btn btn-ghost" id="cNo">Not now</button>
       <button class="btn btn-primary" id="cYes" autofocus>Allow and search</button>
+    </div>
+  </dialog>
+
+  <dialog class="modal clean" id="clean" aria-labelledby="clTitle">
+    <div class="v-head">
+      <h2 id="clTitle">Clean up</h2>
+      <button class="icon-btn" id="clClose" aria-label="Close">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+    <section id="clStart">
+      <p class="p-intro">Find files stored more than once, and the biggest files, in a place you choose. <b>Nothing is removed
+        until you tick files and confirm</b>, and removed files go to the <span class="cl-bin">Recycle Bin</span>, so you can restore them.</p>
+      <p class="small web-only cl-demo-note">In the browser this runs on a made-up demo computer. The desktop app cleans up your real folders and drives.</p>
+      <div class="cl-places" id="clPlaces"></div>
+    </section>
+    <section id="clBusy" class="cl-busy" hidden>
+      <div class="cl-spin" aria-hidden="true"></div>
+      <p id="clBusyText" role="status">Listing files…</p>
+      <button class="btn btn-ghost" id="clStop">Stop</button>
+    </section>
+    <section id="clResults" hidden>
+      <div class="cl-summary" id="clSummary"></div>
+      <div class="cl-tabs-row">
+        <div class="tabs" role="tablist" aria-label="Clean-up views">
+          <button role="tab" id="clTabDup" aria-selected="true">Duplicates</button>
+          <button role="tab" id="clTabMap" aria-selected="false">Map</button>
+          <button role="tab" id="clTabBig" aria-selected="false">Largest files</button>
+        </div>
+        <button class="btn btn-ghost cl-again" id="clAgain">Scan another place</button>
+      </div>
+      <div class="cl-pane" id="clDup"></div>
+      <div class="cl-pane cl-map" id="clMapWrap" hidden><svg id="clMap" role="img" aria-label="Map of duplicate files by folder"></svg><p class="small muted" id="clMapNote"></p></div>
+      <div class="cl-pane" id="clBig" hidden></div>
+      <div class="cl-bar">
+        <button class="btn btn-ghost" id="clAuto">Tick all extra copies</button>
+        <span class="small muted" id="clSel">Nothing ticked</span>
+        <button class="btn btn-danger" id="clGo" disabled>Move to Recycle Bin</button>
+      </div>
+    </section>
+  </dialog>
+
+  <dialog class="modal consent" id="clConfirm" aria-labelledby="ccTitle">
+    <div class="c-ico" aria-hidden="true">🗑️</div>
+    <h2 id="ccTitle">Move these files to the Recycle Bin?</h2>
+    <p id="ccText"></p>
+    <ul class="cc-list mono" id="ccList"></ul>
+    <ul class="ticks c-promise">
+      <li><b>Each duplicate is checked first:</b> LocatorZero reads it and the copy you keep in full, and skips it unless
+        they are exactly the same.</li>
+      <li><b>One copy of every file always stays.</b></li>
+      <li><b>Nothing is deleted outright.</b> You can restore files from the <span class="cl-bin">Recycle Bin</span>.</li>
+    </ul>
+    <p class="small c-browser web-only">Demo: nothing is really moved in the web app.</p>
+    <div class="w-btns">
+      <button class="btn btn-ghost" id="ccNo" autofocus>Cancel</button>
+      <button class="btn btn-danger" id="ccYes">Move to Recycle Bin</button>
     </div>
   </dialog>
 

@@ -59,10 +59,10 @@ await test('service worker gets its own policy, not the page one joined to it', 
   assert(csp === "default-src 'none'; connect-src 'self'", 'sw.js CSP is: ' + csp);
 });
 
-await test('welcome tour shows on first visit and walks through 4 slides', async () => {
+await test('welcome tour shows on first visit and walks through 5 slides', async () => {
   await page.waitForSelector('#welcome[open]');
   assert((await page.textContent('#wTitle')).includes('Type any part of its name'));
-  for (let i = 0; i < 3; i++) await page.click('#wNext');
+  for (let i = 0; i < 4; i++) await page.click('#wNext');
   assert((await page.textContent('#wNext')).includes('Start searching'));
   await page.click('#wNext');
   await page.waitForFunction(() => !document.querySelector('#welcome').open);
@@ -128,11 +128,33 @@ await test('Search button and Enter confirm the search; Enter previews only afte
 await test('tour ends with a one-click demo search', async () => {
   await page.click('#helpBtn');
   await page.waitForSelector('#welcome[open]');
-  for (let i = 0; i < 3; i++) await page.click('#wNext');
+  for (let i = 0; i < 4; i++) await page.click('#wNext');
   await page.click('#wTry');
   await page.waitForFunction(() => !document.querySelector('#welcome').open && window.__lz.state.searched === 'budget');
   assert(await page.evaluate(() => window.__lz.state.results.length) > 0);
   await type(page, '');
+});
+
+await test('Clean up (demo): finds duplicates, keeps one copy of each, maps them, and asks before moving anything', async () => {
+  await page.evaluate(() => document.getElementById('cleanSide').click());
+  await page.waitForSelector('#clean[open]');
+  await page.click('.cl-place[data-place=demo]');
+  await page.waitForSelector('#clResults:not([hidden])', { timeout: 10000 });
+  assert((await page.textContent('#clSummary')).includes('6 sets of duplicates'), 'summary');
+  assert(await page.isDisabled('#clGo'), 'nothing ticked, so nothing can be moved');
+  await page.click('#clAuto');
+  assert((await page.textContent('#clSel')).startsWith('10 files ticked'), 'every extra copy ticked');
+  await page.click('#clTabMap');
+  assert(await page.$$eval('#clMap .leaf', l => l.length) === 16, 'map shows every copy');
+  await page.click('#clMap .leaf.keep');
+  assert((await page.textContent('#toast')).includes('One copy always stays'), 'the last copy cannot be ticked');
+  await page.click('#clGo');
+  await page.waitForSelector('#clConfirm[open]');
+  await page.click('#ccNo');
+  assert((await page.textContent('#clSel')).startsWith('10 files'), 'cancel moves nothing');
+  await page.click('#clGo'); await page.click('#ccYes');
+  await page.waitForFunction(() => document.getElementById('clSummary').textContent.includes('All duplicates cleaned up'));
+  await page.click('#clClose');
 });
 
 await test('web shows a privacy disclaimer instead of a folder button under the search field', async () => {

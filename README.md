@@ -33,6 +33,10 @@ drives, cloud folders and every browser. Private, offline, read-only.</p>
 <td><img src="docs/screenshots/desktop-preview.png" alt="Desktop app preview"><br><b>Desktop app</b>: whole-computer search through your system's own index, with preview and "Show in folder".</td>
 <td><img src="docs/screenshots/plans.png" alt="Plans"><br><b>Fair pricing</b>: 90 days free, then a licence key that works offline.</td>
 </tr>
+<tr>
+<td><img src="docs/screenshots/cleanup-map.png" alt="Clean up: map of duplicate files"><br><b>Clean up</b>: every copy of a duplicated file on one map. Green stays, red goes to the bin, after you confirm.</td>
+<td><img src="docs/screenshots/cleanup-confirm.png" alt="Clean up confirmation"><br><b>Nothing moves without your OK</b>: a final check of what goes, and where it can be restored from.</td>
+</tr>
 </table>
 
 - **A map even when nothing matches.** The Map tab then shows every place that was searched, each marked
@@ -44,6 +48,10 @@ drives, cloud folders and every browser. Private, offline, read-only.</p>
 - **You choose where, and you're asked first.** The **Search in** menu inside the search field picks everywhere,
   your home folder, a USB, external or network drive, a cloud folder, or any folder. Each place asks for your OK
   before it is read.
+- **Clean up (desktop).** Finds files stored more than once, and the biggest files, in a place you choose, in
+  seconds, as a list or a map of every copy. You tick what goes; one copy of every file always stays. Nothing moves
+  until you confirm, each duplicate is checked byte for byte first, and files go to the Recycle Bin or Trash, never
+  deleted outright. Try it on demo files in the web app.
 - **Preview on request.** One file at a time, at most the first 64 KB of text or one image.
 - **Hand-off.** "Show in folder" opens your file manager; "Open" takes a web page back to your browser.
 - **Light and dark**, keyboard-first (`/` jump to search, `Enter` search, `↑↓` then `Enter` preview, `1`/`2` tabs, `S` sidebar, `T` theme),
@@ -51,13 +59,15 @@ drives, cloud folders and every browser. Private, offline, read-only.</p>
 
 ## Privacy, as checks rather than claims
 
-The footer is always visible: **Nothing sent: internet blocked · Searches never saved · Files never changed ·
+The footer is always visible: **Nothing sent: internet blocked · Searches never saved · Files changed only with your OK ·
 Searches clear after 5 min idle**. Press **Verify** and the checks run live.
 
 - **Nothing sent.** The app's security policy blocks every network request, its own included. The desktop core
   contains no networking library, and the build fails if one is ever added.
 - **Nothing kept.** What you search lives in memory and clears on close, on Wipe, or after 5 idle minutes.
-- **Nothing changed.** Read-only everywhere. Browser history files are left byte-for-byte unchanged (tested).
+- **Nothing changed without you.** Searching is read-only. Browser history files are left byte-for-byte unchanged
+  (tested). Clean up moves a file to the Recycle Bin or Trash only after you tick it and confirm, and only if it is
+  still an exact copy of the one you keep.
 - **Deleted means gone.** A file you permanently delete never shows, even before your system's index catches up.
 
 Full detail, including the two technical limits we haven't beaten yet: [PRIVACY.md](PRIVACY.md).
