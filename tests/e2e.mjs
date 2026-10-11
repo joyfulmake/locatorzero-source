@@ -179,6 +179,15 @@ await test('someone who used an earlier version sees What\'s new once; a first-t
   await c2.close();
 });
 
+await test('the first welcome slide points to Clean up and jumps to its slide', async () => {
+  await page.click('#helpBtn');
+  await page.waitForSelector('#welcome[open]');
+  await page.click('#wNew');
+  assert(await page.isVisible('.w-slide[data-i="3"]'), 'Clean up slide shown');
+  assert((await page.textContent('.w-slide[data-i="3"]')).includes('Free up space'));
+  await page.click('#wSkip');
+});
+
 await test('web shows a privacy disclaimer instead of a folder button under the search field', async () => {
   assert(await page.isVisible('#webNote'), 'disclaimer missing');
   const t = await page.textContent('#webNote');

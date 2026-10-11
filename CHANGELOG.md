@@ -12,7 +12,7 @@ The app shows the same list under menu → About → **What's new in this versio
 - Nothing moves until you confirm. Each copy is checked byte for byte first, then goes to the Recycle Bin or Trash,
   so it can be restored.
 - **About** and **What's new** in the menu: your version, and what changed. After an update, What's new opens once.
-- Welcome tour: a new slide about Clean up.
+- Welcome tour: a new slide about Clean up, with a shortcut to it on the first slide.
 
 ## 0.1.0 (October 2026): first release
 

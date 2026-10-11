@@ -762,7 +762,7 @@
       '<b>Tick all extra copies</b> in one click. One copy of every file always stays.',
       'Nothing moves until you confirm. Each copy is checked byte for byte first, then goes to the <span class="cl-bin">Recycle Bin</span>, so you can restore it.',
       '<b>About</b> and <b>What\'s new</b> in the menu, so you can always see your version and what changed.',
-      'Welcome tour: a new slide about Clean up.'] },
+      'Welcome tour: a new slide about Clean up, with a shortcut to it on the first slide.'] },
     { v: '0.1.0', date: 'October 2026', title: 'First release', items: [
       'One search across your computer, drives, cloud folders, browser history, open tabs and running apps.',
       'Locations and Map views, Preview, Show in folder, light and dark themes.',
@@ -1787,6 +1787,7 @@
   $('wBack').addEventListener('click', function () { showSlide(slide - 1); });
   $('wSkip').addEventListener('click', closeWelcome);
   $('wStart').addEventListener('click', closeWelcome);
+  $('wNew').addEventListener('click', function () { showSlide(3); });
   $('wClean').addEventListener('click', function () { lsSet('lz.welcomed', '1'); $('welcome').close(); openClean(); });
   $('wFolder').addEventListener('click', function () { closeWelcome(); chooseFolderWeb(); });
   $('wTry').addEventListener('click', function () { closeWelcome(); $('tryDemo').click(); });
