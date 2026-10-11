@@ -20,7 +20,7 @@ Every claim below can be checked: in the app (the **Verify** button in the foote
 
 | Where | What | Why |
 |---|---|---|
-| Browser storage (web and desktop) | `lz.theme`, `lz.welcomed`, `lz.welcomeNever`, and `lz.consent` (desktop, only if you tick "Don't ask again") | Light or dark, whether you've seen the tour or turned it off, and whether you allowed searching this computer. Drives and folders you pick are never remembered: LocatorZero asks again next time |
+| Browser storage (web and desktop) | `lz.theme`, `lz.welcomed`, `lz.welcomeNever`, `lz.seenVersion`, and `lz.consent` (desktop, only if you tick "Don't ask again") | Light or dark, whether you've seen the tour or turned it off, the last version you used (so What's new shows once after an update), and whether you allowed searching this computer. Drives and folders you pick are never remembered: LocatorZero asks again next time |
 | `licence.json` in the app's data folder (desktop only) | The date you first opened the app, and your licence key if you entered one | The 90-day trial, and your licence |
 | Browser settings folders (desktop, only if you press **Set up open tabs**) | One small file per browser that tells it how to start LocatorZero's tab helper | The open-tabs feature |
 | Offline cache (web only) | The app's own files | So it works without internet |

@@ -1533,8 +1533,8 @@
               ? 'A test request just failed because this page\'s policy says <code>connect-src \'none\'</code>. ' + state.blocked + ' blocked attempt' + (state.blocked === 1 ? '' : 's') + ' this session, all of them the test.'
               : 'The test request went through, so the security policy is not active here. Do not search anything private on this copy.'],
           [document.cookie === '', 'No cookies', document.cookie === '' ? 'This page has set no cookies and can read none.' : 'Unexpected cookies are present.'],
-          [keys.every(function (k) { return /^lz\.(theme|welcomed|welcomeNever|welcomeAlways|consent)$/.test(k); }), 'Saved on this device: settings only',
-            keys.length ? 'Stored: <code>' + keys.map(esc).join('</code>, <code>') + '</code>. Your theme, whether you\'ve seen the tour, and whether you allowed searching this computer. No searches, no paths.' : 'Nothing at all.'],
+          [keys.every(function (k) { return /^lz\.(theme|welcomed|welcomeNever|welcomeAlways|consent|seenVersion)$/.test(k); }), 'Saved on this device: settings only',
+            keys.length ? 'Stored: <code>' + keys.map(esc).join('</code>, <code>') + '</code>. Your theme, whether you\'ve seen the tour, the last version you used (so What\'s new shows once), and whether you allowed searching this computer. No searches, no paths.' : 'Nothing at all.'],
           NATIVE ? null : [cached.every(function (p) { return /\.(html|css|js|svg|webmanifest)$|\/$/.test(p); }), 'Offline cache holds the app only',
             cached.length ? nf(cached.length) + ' app files, so it works without internet. No results or file data.' : 'No offline cache yet (it fills on the next visit).'],
           [null, 'In memory right now',
