@@ -194,6 +194,7 @@ fn reveal(path: Option<String>, url: Option<String>) -> Result<(), String> {
 
 #[derive(Serialize)]
 struct Status {
+    version: &'static str,
     platform: &'static str,
     sources: Vec<sources::SourceStatus>,
     network_libraries: bool,
@@ -202,6 +203,7 @@ struct Status {
 #[tauri::command]
 async fn status() -> Status {
     Status {
+        version: env!("CARGO_PKG_VERSION"),
         platform: std::env::consts::OS,
         sources: vec![sources::files::status(), tabs::status(), sources::history::status(), sources::procs::status()],
         network_libraries: false,

@@ -157,6 +157,28 @@ await test('Clean up (demo): finds duplicates, keeps one copy of each, maps them
   await page.click('#clClose');
 });
 
+await test('About shows the version, which matches the desktop build, and What\'s new lists this release', async () => {
+  const conf = JSON.parse(fs.readFileSync(new URL('../desktop/src-tauri/tauri.conf.json', import.meta.url), 'utf8'));
+  assert((await page.textContent('#aboutVer')) === conf.version, 'LZ_VERSION in app.js must equal tauri.conf.json');
+  await page.evaluate(() => document.getElementById('whatsNewBtn').click());
+  await page.waitForSelector('#whatsNew[open]');
+  assert((await page.textContent('#wnTitle')).includes(conf.version));
+  assert((await page.textContent('#wnBody')).includes('Clean up'));
+  await page.click('#wnOk');
+});
+
+await test('someone who used an earlier version sees What\'s new once; a first-time visitor does not', async () => {
+  const c2 = await browser.newContext();
+  const p = await c2.newPage();
+  await p.goto(base); await p.waitForSelector('#welcome[open]');
+  await p.evaluate(() => { localStorage.setItem('lz.seenVersion', '0.1.0'); localStorage.setItem('lz.welcomeNever', '1'); });
+  await p.reload(); await p.waitForSelector('#whatsNew[open]');
+  await p.click('#wnOk');
+  await p.reload(); await p.waitForTimeout(600);
+  assert(!(await p.evaluate(() => document.getElementById('whatsNew').open)), 'shown only once');
+  await c2.close();
+});
+
 await test('web shows a privacy disclaimer instead of a folder button under the search field', async () => {
   assert(await page.isVisible('#webNote'), 'disclaimer missing');
   const t = await page.textContent('#webNote');

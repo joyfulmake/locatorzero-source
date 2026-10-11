@@ -107,6 +107,14 @@
       <a class="btn btn-primary wide" href="download.html">Download for Windows, macOS, Linux</a>
       <p class="muted small mt">The browser can only see folders you hand it. The desktop app adds your whole disk via the system's own search index, every browser's history and running processes, still with zero network access.</p>
     </section>
+
+    <section class="side-sec">
+      <h3>About</h3>
+      <p class="small about-ver">LocatorZero <b id="aboutVer">0.2.0</b> <span class="muted" id="aboutKind"></span></p>
+      <button class="btn btn-soft wide" id="whatsNewBtn">What's new in this version</button>
+      <p class="small muted mt">Help: locatorzero.help@gmail.com<br><a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> ·
+        <a href="https://github.com/joyfulmake/locatorzero-source" id="aboutSource">Source code</a></p>
+    </section>
   </aside>
   <div class="scrim" id="scrim" hidden></div>
 
@@ -411,6 +419,20 @@
     <div class="w-btns">
       <button class="btn btn-ghost" id="ccNo" autofocus>Cancel</button>
       <button class="btn btn-danger" id="ccYes">Move to Recycle Bin</button>
+    </div>
+  </dialog>
+
+  <dialog class="modal whatsnew" id="whatsNew" aria-labelledby="wnTitle">
+    <div class="v-head">
+      <h2 id="wnTitle">What's new</h2>
+      <button class="icon-btn" id="wnClose" aria-label="Close">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+    <div id="wnBody"></div>
+    <div class="w-btns">
+      <button class="btn btn-ghost" id="wnOk">Got it</button>
+      <button class="btn btn-primary" id="wnTry">Try Clean up 🧹</button>
     </div>
   </dialog>
 

@@ -751,6 +751,52 @@
     }).join('');
   }
 
+  // ---------- version and what's new ----------
+  // Keep LZ_VERSION equal to desktop/src-tauri/tauri.conf.json (an end-to-end test checks it), and add each release
+  // to CHANGES and CHANGELOG.md.
+  var LZ_VERSION = '0.2.0';
+  var CHANGES = [
+    { v: '0.2.0', date: 'October 2026', title: 'Clean up: free up space, safely', items: [
+      '<b>Clean up</b> (menu → Clean up): finds files stored more than once, and your biggest files, in a place you choose, in seconds.',
+      'See them as a list, or on a <b>map</b> of every folder that holds a copy. Green stays, red goes.',
+      '<b>Tick all extra copies</b> in one click. One copy of every file always stays.',
+      'Nothing moves until you confirm. Each copy is checked byte for byte first, then goes to the <span class="cl-bin">Recycle Bin</span>, so you can restore it.',
+      '<b>About</b> and <b>What\'s new</b> in the menu, so you can always see your version and what changed.',
+      'Welcome tour: a new slide about Clean up.'] },
+    { v: '0.1.0', date: 'October 2026', title: 'First release', items: [
+      'One search across your computer, drives, cloud folders, browser history, open tabs and running apps.',
+      'Locations and Map views, Preview, Show in folder, light and dark themes.',
+      'Private by design: no internet connection, nothing kept, consent before each place.',
+      '90-day free trial and offline licence keys.'] }
+  ];
+  function appVersion() { return (state.nativeStatus && state.nativeStatus.version) || LZ_VERSION; }
+  function renderAbout() {
+    $('aboutVer').textContent = appVersion();
+    $('aboutKind').textContent = NATIVE ? '· desktop app' : '· web app, always the latest';
+  }
+  function openWhatsNew() {
+    setSidebar(false);
+    var cur = CHANGES[0];
+    $('wnTitle').textContent = 'What\'s new in ' + cur.v;
+    $('wnBody').innerHTML = CHANGES.map(function (c, i) {
+      var list = '<ul class="ticks">' + c.items.map(function (x) { return '<li>' + x + '</li>'; }).join('') + '</ul>';
+      return i === 0 ? '<p class="wn-sub"><b>' + esc(c.title) + '</b> · ' + esc(c.date) + '</p>' + list
+        : '<details class="wn-old"><summary>Version ' + esc(c.v) + ': ' + esc(c.title) + '</summary>' + list + '</details>';
+    }).join('');
+    applyBinNames();
+    lsSet('lz.seenVersion', LZ_VERSION);
+    if (!$('whatsNew').open) $('whatsNew').showModal();
+  }
+  // Someone who used an earlier version sees What's new once, after the tour.
+  function updatedSinceLastVisit() {
+    var seen = lsGet('lz.seenVersion');
+    return seen ? seen !== LZ_VERSION : lsGet('lz.welcomed') === '1';
+  }
+  function afterIntro() {
+    if (NATIVE && !hasConsent('everywhere') && state.scope.type === 'everywhere') setTimeout(function () { if (!$('plans').open && !$('whatsNew').open) askEverywhere(); }, 250);
+    else $('q').focus();
+  }
+
   // ---------- clean up ----------
   // Duplicate and largest files in one place the user chose. Desktop: the Rust core lists, compares and, only after
   // the user confirms, moves files to the system's bin (cleanup.rs). Web: a made-up demo computer; nothing is moved.
@@ -1519,6 +1565,7 @@
   function closeWelcome() {
     lsSet('lz.welcomed', '1'); if ($('welcome').open) $('welcome').close(); $('q').focus();
     if (state.pendingPlans) { var m = state.pendingPlans; state.pendingPlans = null; openPlans(m); }
+    else if (state.upgraded) { state.upgraded = false; setTimeout(openWhatsNew, 250); }
     // A moment later, so the key that closed the tour (Escape) cannot also dismiss this question.
     else if (NATIVE && !hasConsent('everywhere') && state.scope.type === 'everywhere') setTimeout(askEverywhere, 250);
   }
@@ -1634,6 +1681,12 @@
   $('plansSide').addEventListener('click', function () { openPlans(); });
   applyBinNames();
   $('cleanSide').addEventListener('click', openClean);
+  $('whatsNewBtn').addEventListener('click', openWhatsNew);
+  $('wnClose').addEventListener('click', function () { $('whatsNew').close(); });
+  $('wnOk').addEventListener('click', function () { $('whatsNew').close(); });
+  $('wnTry').addEventListener('click', function () { $('whatsNew').close(); openClean(); });
+  $('whatsNew').addEventListener('close', function () { if (!$('clean').open) afterIntro(); });
+  $('aboutSource').addEventListener('click', function (e) { e.preventDefault(); openExternal(e.currentTarget.href); });
   $('clClose').addEventListener('click', function () { $('clean').close(); });
   $('clPlaces').addEventListener('click', function (e) {
     var b = e.target.closest('.cl-place'); if (!b) return;
@@ -1776,7 +1829,7 @@
   // ---------- start ----------
   if (NATIVE) {
     state.demo = false; $('srcDemo').checked = false;
-    NATIVE.status().then(function (st) { state.nativeStatus = st; renderNativeSources(); }, function () {});
+    NATIVE.status().then(function (st) { state.nativeStatus = st; renderNativeSources(); renderAbout(); }, function () {});
     refreshLicence();
   }
   applyTheme(document.documentElement.getAttribute('data-theme') || 'light');
@@ -1785,7 +1838,12 @@
   probeNetwork();
   setInterval(idleTick, 15000); idleTick();
   // The tour opens on every load, refreshes included, unless the visitor ticked "Don't show this at start".
+  renderAbout();
+  // Decided once per load, before the tour marks this visitor as welcomed.
+  state.upgraded = updatedSinceLastVisit();
+  if (!state.upgraded) lsSet('lz.seenVersion', LZ_VERSION);
   if (lsGet('lz.welcomeNever') !== '1') openWelcome();
+  else if (state.upgraded) { state.upgraded = false; openWhatsNew(); }
   else if (NATIVE && !hasConsent('everywhere')) setTimeout(function () { if (!$('plans').open) askEverywhere(); }, 300);
   else $('q').focus();
 

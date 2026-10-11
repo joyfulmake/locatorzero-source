@@ -1,0 +1,21 @@
+# End-to-end tests of the web app (the same interface the desktop app ships), in a real browser.
+name: web-tests
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+jobs:
+  e2e:
+    if: github.repository == 'joyfulmake/locatorzero-source'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - name: End-to-end tests
+        env:
+          CHROMIUM: /usr/bin/google-chrome
+        run: node tests/e2e.mjs
+      - run: node tests/licence-key-service.mjs

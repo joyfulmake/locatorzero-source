@@ -674,3 +674,9 @@ body.dl-page { padding-bottom: 0; }
 .cc-list { margin: 6px 0 14px; padding: 10px 12px 10px 28px; border-radius: 12px; background: var(--surface-2); font-size: 12px; max-height: 160px; overflow: auto; word-break: break-all; color: var(--text-2); }
 #clMap .lane-label .count { font: 700 12px var(--font); fill: var(--ok); }
 .w-cl-head { font-size: 13.5px; color: var(--text-2); padding: 2px 4px; } .w-cl-head span { color: var(--ok); font-weight: 700; }
+.whatsnew { width: min(600px, calc(100vw - 32px)); }
+.wn-sub { margin: 0 0 8px; }
+.wn-old { margin-top: 14px; padding-top: 10px; border-top: 1px dashed var(--border); color: var(--text-2); }
+.wn-old summary { cursor: pointer; font-weight: 600; color: var(--text); }
+.whatsnew .w-btns { margin-top: 18px; justify-content: flex-end; }
+.about-ver b { color: var(--text); }
