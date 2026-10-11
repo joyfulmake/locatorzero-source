@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'">
+  <meta name="referrer" content="no-referrer">
+  <meta name="description" content="Get your LocatorZero licence key with your order number and email.">
+  <meta name="theme-color" content="#0b0d12">
+  <meta name="robots" content="noindex">
+  <title>Get your key · LocatorZero</title>
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="app.css">
+  <script src="theme-boot.js"></script>
+</head>
+<body class="dl-page">
+  <header class="topbar">
+    <a class="brand" href="./" aria-label="LocatorZero web app">
+      <img src="icon.svg" alt="" width="28" height="28">
+      <span>Locator<b>Zero</b></span>
+    </a>
+    <div class="topbar-right"><a class="btn btn-ghost dl-try" href="download.html">Download</a></div>
+  </header>
+
+  <main class="legal">
+    <h1>Get your licence key</h1>
+    <p>Thanks for buying LocatorZero 😊 Enter the <b>order number</b> from your receipt email and the <b>email you paid
+      with</b>. Come back here after each renewal for a fresh key.</p>
+
+    <form class="key-form" id="keyForm" novalidate>
+      <label for="kOrder" class="small"><b>Order number</b></label>
+      <input id="kOrder" inputmode="numeric" autocomplete="off" placeholder="e.g. 1001" required>
+      <label for="kEmail" class="small"><b>Email used at checkout</b></label>
+      <input id="kEmail" type="email" autocomplete="email" placeholder="you@example.com" required>
+      <button class="btn btn-primary" id="kGo" type="submit">Get my key</button>
+      <p class="small" id="kMsg" role="status"></p>
+    </form>
+
+    <section id="kResult" hidden>
+      <h2>Your key</h2>
+      <textarea id="kKey" class="mono key-out" readonly rows="4" aria-label="Licence key"></textarea>
+      <p><button class="btn btn-soft" id="kCopy" type="button">Copy key</button> <span class="small muted" id="kInfo"></span></p>
+      <p>Open LocatorZero, choose <b>Plans</b> (or <b>Enter a licence key</b>) in the menu, paste the key and press
+        <b>Activate</b>. It is checked offline and holds only your plan, order number and dates.</p>
+    </section>
+
+    <p class="small muted">Your order number and email are sent once to our key service, which checks them with our
+      store, Lemon Squeezy, and returns the key. Nothing is saved or logged. Trouble? Email
+      <a href="mailto:locatorzero.help@gmail.com">locatorzero.help@gmail.com</a> with your order number.</p>
+  </main>
+
+  <footer class="dl-foot">
+    <span>© 2026 LocatorZero</span>
+    <a href="./">Web app</a>
+    <a href="terms.html">Terms</a>
+    <a href="refund.html">Refunds</a>
+    <a href="privacy.html">Privacy</a>
+  </footer>
+  <script src="key.js"></script>
+</body>
+</html>

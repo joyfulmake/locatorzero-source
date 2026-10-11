@@ -8,7 +8,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const src = path.join(here, '..', 'web');
 const dist = path.join(here, 'dist');
 // Website-only files: the desktop app needs the app itself, not the download page, its video or the signing key.
-const skip = new Set(['_headers', 'sw.js', 'manifest.webmanifest', 'download.html', 'download.js', 'locatorzero-release-key.asc']);
+const skip = new Set(['_headers', 'sw.js', 'manifest.webmanifest', 'download.html', 'download.js', 'locatorzero-release-key.asc', 'key.html', 'key.js']);
 
 fs.rmSync(dist, { recursive: true, force: true });
 fs.mkdirSync(dist);

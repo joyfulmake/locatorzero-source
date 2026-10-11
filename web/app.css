@@ -614,3 +614,7 @@ body.dl-page { padding-bottom: 0; }
 .legal b { color: var(--text); }
 .legal ul { padding-left: 20px; display: grid; gap: 8px; }
 .legal-lead { padding: 14px 18px; border-radius: 16px; background: var(--accent-soft); border: 1px solid color-mix(in srgb, var(--accent) 25%, var(--border)); }
+.key-form { display: grid; gap: 8px; max-width: 420px; margin: 20px 0 28px; }
+.key-form input, .key-out { width: 100%; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font-size: 15px; }
+.key-form .btn { margin-top: 8px; justify-self: start; }
+.key-out { font-size: 12px; word-break: break-all; resize: none; }

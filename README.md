@@ -68,8 +68,8 @@ Full detail, including the two technical limits we haven't beaten yet: [PRIVACY.
 |---|---|---|---|---|
 | Free | 90 days free | $3 / month | $25 / year | $35 once |
 
-No account. Your key arrives by email, holds only the plan, the order reference and the dates, and is checked
-offline. The store opens soon; see [docs/pricing-and-selling.md](docs/pricing-and-selling.md).
+No account. After paying, you get your key at locatorzero.pages.dev/key (order number + email; stateless, see
+`functions/api/licence-key.js`). It holds only the plan, the order reference and the dates, and is checked offline. The store opens soon; see [docs/pricing-and-selling.md](docs/pricing-and-selling.md).
 
 ## Source available, with caveats
 

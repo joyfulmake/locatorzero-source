@@ -751,6 +751,29 @@
     }).join('');
   }
 
+  // ---------- store ----------
+  // Checkout opens in the browser on Lemon Squeezy's site; this app never connects anywhere itself.
+  // Keep live false until the store is activated: until then the buttons say "Store opens soon".
+  var STORE = {
+    live: false,
+    checkout: {
+      monthly: 'https://locatorzero.lemonsqueezy.com/checkout/buy/1f9eada9-1be7-41de-92b9-879cdaf17e1d',
+      pro: 'https://locatorzero.lemonsqueezy.com/checkout/buy/472fe712-1274-42af-a7d8-5f52ec86be81',
+      lifetime: 'https://locatorzero.lemonsqueezy.com/checkout/buy/cf392554-b89f-483d-ada0-6fda3d56b779'
+    }
+  };
+  function openExternal(url) {
+    if (NATIVE) NATIVE.reveal(null, url).catch(function (err) { toast(String(err)); });
+    else window.open(url, '_blank', 'noopener,noreferrer');
+  }
+  function renderStore() {
+    var labels = { monthly: 'Buy Monthly', pro: 'Buy Pro', lifetime: 'Buy Lifetime' };
+    Array.prototype.forEach.call(document.querySelectorAll('.p-buy'), function (b) {
+      b.disabled = !STORE.live;
+      b.textContent = STORE.live ? labels[b.dataset.plan] : 'Store opens soon';
+    });
+  }
+
   // ---------- licence (desktop) ----------
   var PLAN_NAMES = { monthly: 'Monthly', pro: 'Pro (yearly)', lifetime: 'Lifetime' };
   function refreshLicence() {
@@ -786,9 +809,9 @@
   }
   function openPlans(mode) {
     $('pTitle').textContent = mode === 'ended' ? 'Your 90-day trial has ended 😊' : mode === 'expired' ? 'Your licence has expired' : 'Plans & pricing';
-    $('pIntro').textContent = mode === 'ended' ? 'Thanks for trying LocatorZero. Pick a plan to keep searching this computer. Your key arrives by email and works offline.'
-      : mode === 'expired' ? 'Renew to keep searching this computer. Your renewal email has a fresh key.'
-      : 'Use the desktop app free for 90 days. Then pick what suits you. No account needed: you get a licence key by email, and it works offline.';
+    $('pIntro').textContent = mode === 'ended' ? 'Thanks for trying LocatorZero. Pick a plan to keep searching this computer. After you pay, you get a key that works offline.'
+      : mode === 'expired' ? 'Renew to keep searching this computer, then use Get your key below for a fresh one.'
+      : 'Use the desktop app free for 90 days. Then pick what suits you. No account needed: after you pay, you get a licence key that works offline.';
     $('pMsg').textContent = '';
     setSidebar(false);
     if (!$('plans').open) $('plans').showModal();
@@ -1322,6 +1345,12 @@
   $('pClose').addEventListener('click', function () { $('plans').close(); });
   $('plans').addEventListener('click', function (e) { if (e.target === $('plans')) $('plans').close(); });
   $('pActivate').addEventListener('click', activateKey);
+  renderStore();
+  document.querySelector('#plans .p-grid').addEventListener('click', function (e) {
+    var b = e.target.closest('.p-buy');
+    if (b && STORE.live && STORE.checkout[b.dataset.plan]) openExternal(STORE.checkout[b.dataset.plan]);
+  });
+  $('pGetKey').addEventListener('click', function (e) { e.preventDefault(); openExternal(e.currentTarget.href); });
   $('pKey').addEventListener('keydown', function (e) { if (e.key === 'Enter') activateKey(); });
   $('licBox').addEventListener('click', function (e) {
     if (e.target.id === 'licEnter') { openPlans(state.licence && state.licence.state !== 'trial' ? (state.licence.state === 'expired' ? 'expired' : 'ended') : null); setTimeout(function () { $('pKey').focus(); }, 50); }

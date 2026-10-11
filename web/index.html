@@ -298,11 +298,11 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
       </button>
     </div>
-    <p class="p-intro" id="pIntro">Use the desktop app free for 90 days. Then pick what suits you. No account needed: you get a licence key by email, and it works offline.</p>
+    <p class="p-intro" id="pIntro">Use the desktop app free for 90 days. Then pick what suits you. No account needed: after you pay, you get a licence key that works offline.</p>
     <div class="p-grid">
-      <div class="p-card"><h3>Monthly</h3><p class="p-price">$3<small>/month</small></p><p class="muted small">Cancel any time.</p><button class="btn btn-soft wide" disabled>Store opens soon</button></div>
-      <div class="p-card p-best"><span class="p-tag">Best value</span><h3>Pro</h3><p class="p-price">$25<small>/year</small></p><p class="muted small">About $2 a month. Saves 30%.</p><button class="btn btn-primary wide" disabled>Store opens soon</button></div>
-      <div class="p-card"><h3>Lifetime</h3><p class="p-price">$35<small> once</small></p><p class="muted small">Pay once. Every update in version 1, for good.</p><button class="btn btn-soft wide" disabled>Store opens soon</button></div>
+      <div class="p-card"><h3>Monthly</h3><p class="p-price">$3<small>/month</small></p><p class="muted small">Cancel any time.</p><button class="btn btn-soft wide p-buy" data-plan="monthly" disabled>Store opens soon</button></div>
+      <div class="p-card p-best"><span class="p-tag">Best value</span><h3>Pro</h3><p class="p-price">$25<small>/year</small></p><p class="muted small">About $2 a month. Saves 30%.</p><button class="btn btn-primary wide p-buy" data-plan="pro" disabled>Store opens soon</button></div>
+      <div class="p-card"><h3>Lifetime</h3><p class="p-price">$35<small> once</small></p><p class="muted small">Pay once. Every update in version 1, for good.</p><button class="btn btn-soft wide p-buy" data-plan="lifetime" disabled>Store opens soon</button></div>
     </div>
     <ul class="ticks p-ticks">
       <li>Every plan: all sources, map, preview, open tabs, every future update while active.</li>
@@ -310,7 +310,7 @@
       <li class="web-only">This web app stays free, for folders you choose.</li>
     </ul>
     <div class="desktop-only p-key">
-      <label for="pKey" class="small"><b>Already bought?</b> Paste your licence key:</label>
+      <label for="pKey" class="small"><b>Already bought?</b> Paste your licence key. Lost it, or renewed? <a href="https://locatorzero.pages.dev/key" id="pGetKey">Get your key</a>.</label>
       <div class="p-key-row"><input id="pKey" class="mono" autocomplete="off" spellcheck="false" placeholder="LZ1.…"><button class="btn btn-primary" id="pActivate">Activate</button></div>
       <p class="small" id="pMsg" role="status"></p>
     </div>
