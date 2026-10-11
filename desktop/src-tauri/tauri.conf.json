@@ -1,0 +1,60 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "LocatorZero",
+  "version": "0.1.0",
+  "identifier": "dev.locatorzero.app",
+  "build": {
+    "frontendDist": "../dist",
+    "beforeBuildCommand": "node build-frontend.mjs",
+    "beforeDevCommand": "node build-frontend.mjs"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "title": "LocatorZero",
+        "width": 1180,
+        "height": 820,
+        "minWidth": 380,
+        "minHeight": 560,
+        "center": true
+      }
+    ],
+    "security": {
+      "csp": "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' blob: data:; connect-src ipc: http://ipc.localhost; base-uri 'none'; form-action 'none'",
+      "freezePrototype": true
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": [
+      "deb",
+      "rpm",
+      "appimage",
+      "dmg",
+      "msi",
+      "nsis"
+    ],
+    "category": "Utility",
+    "shortDescription": "Private, offline, read-only locator",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.png",
+      "icons/icon.ico"
+    ],
+    "resources": {
+      "../../extension/": "extension/"
+    },
+    "publisher": "LocatorZero",
+    "copyright": "\u00a9 2026 LocatorZero",
+    "homepage": "https://locatorzero.pages.dev",
+    "longDescription": "Find any file, folder, web page or open tab by name. Private, offline, read-only: LocatorZero never connects to the internet and keeps no copy of what it finds.",
+    "linux": {
+      "deb": {
+        "section": "utils"
+      }
+    }
+  }
+}

@@ -1,0 +1,37 @@
+[package]
+name = "locatorzero"
+version = "0.1.0"
+description = "Where does it live? A private, offline, read-only locator."
+edition = "2021"
+license = "LicenseRef-LocatorZero-Source-Available"
+authors = ["LocatorZero"]
+homepage = "https://locatorzero.pages.dev"
+
+[lib]
+name = "locatorzero_lib"
+crate-type = ["rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+# No networking crate appears here, on purpose. desktop/check-no-network.sh fails the build if one is ever pulled in.
+[dependencies]
+tauri = { version = "2", features = [] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+rusqlite = { version = "0.32", features = ["bundled"] }
+sysinfo = { version = "0.33", default-features = false, features = ["system", "user"] }
+base64 = "0.22"
+zeroize = "1"
+ed25519-dalek = "2"
+tauri-plugin-dialog = "2"
+
+[dev-dependencies]
+tempfile = "3"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true

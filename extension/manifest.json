@@ -1,0 +1,11 @@
+{
+  "manifest_version": 3,
+  "name": "LocatorZero Tabs",
+  "version": "0.1.0",
+  "description": "Lets the LocatorZero desktop app find your open tabs. Talks only to LocatorZero on this computer, never to the internet. Private windows are never shared.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAycq+2KCakbFvbrQhrhczjCjtdsX28uKu41GnnD43tZsQ3drYzYKQ7ziS5RbIjIJruRa04wL194Cg/2KS28vqBKhQAWy+ccNNgbektwweCnH0sRHST8YVfLydJPNsuV7FTBs7ps62JL666QHgiaSE4K1ATneH4MZ64doINJQTe15+zE/M1dj1wqN0w3zyqUy+gv40+1b1cS3mKfQt0d6/3BKsXUVccjrqBVIAnkDLkCDc70aD1lYv3u4f6j+KMKYrtCYvcTgxYGgsm/RMXJW8cdfvhHb5Izxnexvs+A/aaLmiehP0gXxOLgq8EYEeriaVpKonBojgg2a9Bar865ddDwIDAQAB",
+  "permissions": ["tabs", "nativeMessaging"],
+  "background": { "service_worker": "background.js", "scripts": ["background.js"] },
+  "icons": { "128": "icon-128.png" },
+  "browser_specific_settings": { "gecko": { "id": "tabs@locatorzero.dev", "strict_min_version": "121.0" } }
+}

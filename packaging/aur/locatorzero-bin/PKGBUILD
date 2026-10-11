@@ -1,0 +1,18 @@
+# Maintainer: LocatorZero
+pkgname=locatorzero-bin
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="Find any file, folder, web page or open tab by name. Private, offline, read-only."
+arch=('x86_64')
+url="https://locatorzero.pages.dev"
+license=('LicenseRef-LocatorZero-Source-Available')
+depends=('webkit2gtk-4.1' 'gtk3')
+optdepends=('plocate: instant whole-disk search through the system index')
+provides=('locatorzero')
+conflicts=('locatorzero')
+source=("https://locatorzero.pages.dev/downloads/LocatorZero_${pkgver}_amd64.deb")
+sha256sums=('7330f5448781fa402e1ee798ffa1ad8027bd07cdcadd413e69c36dd8d9213d5a')
+
+package() {
+  bsdtar -xf data.tar.* -C "$pkgdir"
+}

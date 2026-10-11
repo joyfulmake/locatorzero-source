@@ -1,0 +1,63 @@
+LocatorZero Source-Available License, version 1.0
+Copyright (c) 2026 LocatorZero (locatorzero.help@gmail.com)
+
+This licence covers the LocatorZero software in this repository: the web app, the desktop app, the browser
+extension, the tools and the documentation (together, "the Software"). It is source-available, not open source:
+you may read the code and check what it does, but using it beyond the free trial needs a paid licence.
+
+1. WHAT YOU MAY DO, FREE
+
+   a. Read and audit. You may read, study and build the source code to check how the Software works, including
+      its privacy and security claims.
+   b. Report and publish findings. You may test the Software for security and privacy problems, report them, and
+      publish what you found in good faith, after giving the Licensor a reasonable time to respond (see SECURITY.md).
+   c. Evaluate. You may install and use the desktop app for a free trial of 90 days from first launch.
+   d. Use the web app. You may use the hosted web app, as published by the Licensor, free of charge.
+
+2. WHAT NEEDS A PAID LICENCE
+
+   Using the desktop app after the 90-day trial requires a valid licence key bought from the Licensor or an
+   authorised reseller, under the plan you chose (for example monthly, yearly or lifetime). A key licenses use
+   by one person, on the devices that person uses.
+
+3. WHAT YOU MAY NOT DO
+
+   Unless the Licensor agrees in writing, you may not:
+   a. copy, redistribute, publish or sell the Software, in source or built form, or any modified version of it;
+   b. sublicense it, rent it, or offer it to others as a hosted or managed service;
+   c. remove, disable or work around the licence-key check or the trial, or help others do so;
+   d. use the source code to build or train a competing product;
+   e. remove or change copyright, licence or attribution notices.
+
+4. CONTRIBUTIONS
+
+   If you send a contribution (code, documentation, translations), you grant the Licensor a perpetual, worldwide,
+   royalty-free right to use, change and relicense it as part of the Software, and you confirm you have the right
+   to grant this. The Licensor may ask for a signed contributor agreement before accepting contributions.
+
+5. YOUR DATA
+
+   The Software is designed to send nothing from your device and to keep no copy of what it finds. Those design
+   choices are described in PRIVACY.md and are part of what you can audit under section 1. They are not a
+   warranty; see section 6.
+
+6. NO WARRANTY
+
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING FITNESS FOR A
+   PARTICULAR PURPOSE AND NON-INFRINGEMENT. Nothing in this licence limits rights that consumer-protection law in
+   your country gives you and that cannot be excluded by contract.
+
+7. LIMIT OF LIABILITY
+
+   To the extent the law allows, the Licensor is not liable for indirect or consequential loss arising from the
+   Software, and its total liability is limited to the amount you paid for your licence in the 12 months before
+   the claim.
+
+8. ENDING THIS LICENCE
+
+   If you break these terms, your rights under this licence end. If it is your first breach and you fix it within
+   30 days of being told, your rights come back.
+
+9. LAW
+
+   This licence is governed by the laws of India.

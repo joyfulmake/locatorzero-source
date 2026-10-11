@@ -1,0 +1,25 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.1.6.0.schema.json
+PackageIdentifier: LocatorZero.LocatorZero
+PackageVersion: 0.1.0
+PackageLocale: en-US
+Publisher: LocatorZero
+PublisherUrl: https://locatorzero.pages.dev
+PrivacyUrl: https://locatorzero.pages.dev/privacy
+PackageName: LocatorZero
+PackageUrl: https://locatorzero.pages.dev/download
+License: Proprietary (source available); free 90-day trial
+ShortDescription: Find any file, folder, web page or open tab by name. Private, offline, read-only.
+Description: |-
+  LocatorZero answers one question: where does it live? Type a few letters and see every place a file, folder,
+  web page or open tab lives: this computer, USB, external and network drives, cloud folders and every browser.
+  It asks before it searches each place, never connects to the internet, and keeps no copy of what it finds.
+Moniker: locatorzero
+Tags:
+  - desktop-search
+  - file-search
+  - finder
+  - locate
+  - offline
+  - privacy
+ManifestType: defaultLocale
+ManifestVersion: 1.6.0

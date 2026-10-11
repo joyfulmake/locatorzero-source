@@ -1,0 +1,9 @@
+node_modules/
+desktop/target/
+desktop/src-tauri/target/
+tests/out/
+desktop/dist/
+desktop/src-tauri/gen/
+.wrangler/
+web/downloads/
+store/

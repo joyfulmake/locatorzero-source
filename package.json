@@ -1,0 +1,12 @@
+{
+  "name": "locatorzero",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "serve": "node tests/serve.mjs",
+    "test": "node tests/e2e.mjs"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.64.0"
+  }
+}
