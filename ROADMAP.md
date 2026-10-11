@@ -45,4 +45,57 @@ Status as of 8 October 2026. ✅ done · 🔜 next · 🧭 later · ⚖️ needs
 - **Native desktop interface** (Rust, no webview) to meet the 60 MB idle-memory and memory-wipe budgets.
 - **Enterprise tier**: fleet search bound to a declared purpose, step-up sign-in, deny-by-default policy, and an
   append-only audit log (ADR-0012). Needs the legal positions in docs/legal-brief.md first.
-- **Mobile**: a viewer that searches your paired computers, not the phone itself (ADR-0018 option D).
+- **Mobile**: Android first, then iOS. See [Mobile plan](#mobile-plan-android-then-ios-) below.
+
+## Mobile plan: Android, then iOS 📱
+
+Same promise as the desktop app: everything runs on the phone, nothing is uploaded, no account. On Android the app
+ships **without the INTERNET permission**, so anyone can confirm from the Play listing that it cannot go online.
+
+**Rule for cleanup features: LocatorZero suggests, you choose, the phone confirms.** The app never deletes anything
+on its own. You tick what to remove, and the deletion goes through the system's own confirmation (Android's delete
+request, iOS's Photos prompt), into the system bin where one exists (Android Trash, iOS Recently Deleted), so a
+mistake can be undone. Nothing is ever deleted outside the items you ticked.
+
+### Phase 1: find and free up space (Android)
+
+| Feature | What the user sees | How, offline |
+|---|---|---|
+| **Find anything** | Type a few letters: files on the phone, SD card and USB (OTG) drives, as a list or map | Android's media index plus a walk of allowed folders; needs Play's "All files access" approval as a file manager |
+| **Duplicate files** | "38 copies of the same files, 2.1 GB": keep one, tick the rest | Group by size, then a partial hash, then a full hash, so only true copies match |
+| **Chat app media** | WhatsApp and Telegram images, videos and voice notes, by chat folder, size and age, including the same photo forwarded many times | Their media folders on shared storage, with duplicate matching |
+| **Large and forgotten files** | The 20 biggest files; downloads not opened in 6 months | File sizes and dates |
+| **Leftovers** | Installer files (APKs) for apps already installed, empty folders, old thumbnail caches | Compares APK package names with installed apps |
+| **Storage map** | A map of what fills the phone, folder by folder | The desktop app's map, reused |
+| **Space saved** | "You freed 3.4 GB this month", kept on the phone only | A local counter |
+
+### Phase 2: photos and smarter cleanup (Android and iOS)
+
+| Feature | What the user sees | How, offline |
+|---|---|---|
+| **Similar photos** | Bursts and near-identical shots side by side, with the best one suggested to keep | Perceptual image hashes computed on the phone; sharpness and exposure scores pick the keeper |
+| **Blurry, dark and accidental shots** | Photos that are blurred, black or taken by accident | On-device image checks, no cloud AI |
+| **Screenshots and memes** | Old screenshots grouped by month, ready to clear | Photo library metadata |
+| **Big videos** | Videos sorted by size, with how much a shorter clip would save | Photo library metadata |
+| **iOS Files** | Search and duplicates inside folders you pick, including iCloud Drive folders already on the phone | iOS only allows folders the user chooses; the app keeps that limited access |
+| **Weekly tidy-up** | An optional reminder: "1.2 GB of new duplicates and screenshots" | Scheduled on the phone, no server push |
+
+### Phase 3: one search across your devices
+
+- **Search your computers from the phone**: "which laptop or drive has the 2024 tax PDF?" Phone and computers talk
+  directly over your home Wi-Fi, encrypted and paired by QR code, with no server in between (ADR-0018).
+- **Send to phone / send to computer** for a found file, over the same direct link.
+
+### What phones don't allow (so we won't promise it)
+
+- Reading other apps' browser history or open tabs (Android and iOS both forbid it).
+- Searching the whole iPhone: iOS only allows the Photos library (with permission) and folders the user picks.
+- Cleaning other apps' private caches: Android 11 and later reserve that for the system's own "Clear cache".
+
+### Open questions
+
+- Pricing: same licence across desktop and mobile, or a separate low-priced mobile plan through Google Play and the
+  App Store billing (which both stores require for in-app purchases)?
+- Ship the cleanup engine (duplicates, large files, leftovers) on **desktop first**: same code, testable today, and
+  useful to current users before the mobile apps exist.
+
