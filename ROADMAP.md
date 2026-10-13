@@ -25,8 +25,41 @@ Status as of 11 October 2026. ✅ done · 🔜 next · 🧭 later · ⚖️ need
   until the user confirms in a second window. Then each duplicate is compared byte for byte with the kept copy and
   moved to the Recycle Bin or Trash; one copy always stays; only paths from the latest scan can be moved.
 - Measured on this machine: a home folder of 178,000 files scanned in 8.4 s, a 276,000-file folder in 8.6 s.
-- Next for Clean up: leftovers (installers for apps already installed, empty folders), old downloads, and
-  similar photos (shared with the mobile plan below).
+- Next for Clean up: deleted-by-mistake help (v0.3 below), then leftovers (installers for apps already installed,
+  empty folders), old downloads, and similar photos (shared with the mobile plan below).
+
+## v0.3: Deleted by mistake? (next release, after launch week) 🔜
+
+Decided 13 Oct 2026. Three parts, in order:
+
+**1. Search the Recycle Bin and Trash, with Restore.** Type a name and a deleted file shows up as "in the Recycle
+Bin, deleted yesterday from Documents", with **Restore** (back to where it was) and **Show in bin**. Read-only until
+the user presses Restore. Nothing is kept: the bin itself is the source, read live, like browser history.
+
+| OS | How | What works |
+|---|---|---|
+| Windows | Each drive's `$Recycle.Bin\<your account>` folder: the `$I` file holds the original path, size and deletion time | Find, original folder, date, Restore. No admin rights |
+| Linux | The freedesktop Trash: `~/.local/share/Trash` and `.Trash-<uid>` on other drives, with `.trashinfo` files | Find, original folder, date, Restore |
+| macOS | `~/.Trash`; macOS asks the user once to allow access (Full Disk Access) | Find and date; Restore via Finder's "Put Back" (asks permission once). Original folder only where Finder records it |
+| Android (mobile plan) | The system Trash (Android 11+) | Find and Restore |
+| iOS | Apps can't read "Recently Deleted" | Not possible |
+| Cloud bins (OneDrive, Dropbox, Google Drive) | Online only, and LocatorZero never connects | Not included; the help card links to them instead |
+
+**2. "Permanently deleted?" help card.** When a search finds nothing, or from the menu: what to do now, per system.
+Stop saving to that drive; then Windows: Windows File Recovery (free, Microsoft) or Recuva; macOS: Time Machine;
+Linux: your backups, or TestDisk/PhotoRec (free, every OS). Plus the cloud bins, which keep files about 30 days.
+Text only: nothing is scanned.
+
+**3. Later, as a separate opt-in tool: LocatorZero Rescue.** Real recovery of permanently deleted files, kept apart
+from the main app so its promise ("delete a file and it's gone here too") stays true. Needs administrator rights,
+explicit consent per drive, shows only what can still be recovered, and always restores to a different drive.
+
+| Where | Realistic? |
+|---|---|
+| USB sticks and SD cards (FAT32, exFAT), on Windows, macOS and Linux | Yes, the best case: these don't wipe deleted data straight away |
+| Windows hard drives (NTFS) | Often, by reading the master file table |
+| Windows and Linux SSDs | Rarely: SSDs erase deleted blocks within minutes (TRIM). Names may show while contents are gone, and the tool must say so |
+| macOS internal disk (APFS) | No: macOS blocks raw disk access |
 
 ## Before selling: launch checklist 🔜
 
