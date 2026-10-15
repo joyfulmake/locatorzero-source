@@ -16,6 +16,10 @@
     reveal: function (path, url) { return invoke('reveal', { path: path || null, url: url || null }); },
     status: function () { return invoke('status'); },
     setupTabs: function () { return invoke('setup_tabs'); },
+    restore: function (ids) { return invoke('trash_restore', { ids: ids }); },
+    openBin: function () { return invoke('open_bin'); },
+    // The global shortcut brings the window forward; the page then readies the search field.
+    onFocusRequest: function (fn) { if (T.event && T.event.listen) T.event.listen('lz-focus', fn); },
     cleanup: {
       scan: function (path) { return invoke('cleanup_scan', { path: path }); },
       progress: function () { return invoke('cleanup_progress'); },

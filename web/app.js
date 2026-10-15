@@ -14,7 +14,7 @@
 
   var KINDS = [
     ['all', 'All'], ['doc', 'Documents'], ['data', 'Sheets & data'], ['img', 'Images'], ['media', 'Audio & video'],
-    ['code', 'Code'], ['arch', 'Archives'], ['web', 'Web pages'], ['folder', 'Folders'], ['other', 'Other']
+    ['code', 'Code'], ['arch', 'Archives'], ['web', 'Web pages'], ['folder', 'Folders'], ['proc', 'Apps'], ['other', 'Other']
   ];
   var AGES = [['any', 'Any time', 0], ['1d', '24 hours', 1], ['7d', '7 days', 7], ['30d', '30 days', 30], ['1y', '1 year', 365]];
   var EXT_KIND = {};
@@ -39,6 +39,7 @@
     shown: 0,
     sel: -1,
     tab: 'list',
+    group: 'none',
     recent: [],
     reads: 0,
     readBytes: 0,
@@ -103,13 +104,82 @@
   // ---------- search ----------
   function tokens(q) { return q.toLowerCase().split(/\s+/).filter(Boolean); }
 
+  // Typed filters inside the search text: ext:pdf  size:>10mb  modified:week  type:image. They narrow; the other words
+  // still match names. Anything that does not parse stays an ordinary word, so a typo never hides results silently.
+  var TYPE_WORDS = {
+    doc: 'doc docs document documents text pdf', data: 'data sheet sheets spreadsheet spreadsheets table',
+    img: 'img image images photo photos picture pictures pic pics', media: 'media video videos audio music movie movies sound',
+    code: 'code source script scripts', arch: 'arch archive archives zip zips compressed', folder: 'folder folders dir dirs directory',
+    web: 'web page pages site sites history url', proc: 'proc app apps process processes program'
+  };
+  var TYPE_OF = {};
+  Object.keys(TYPE_WORDS).forEach(function (k) { TYPE_WORDS[k].split(' ').forEach(function (w) { TYPE_OF[w] = k; }); });
+  var UNIT = { b: 1, k: 1024, kb: 1024, m: 1048576, mb: 1048576, g: 1073741824, gb: 1073741824, t: 1099511627776, tb: 1099511627776 };
+  var WHEN = { today: 1, yesterday: 2, week: 7, month: 30, year: 365 };
+  function parseQuery(q) {
+    var out = { words: [], ext: null, kind: null, min: null, max: null, days: 0, labels: [] };
+    q.split(/\s+/).filter(Boolean).forEach(function (w) {
+      var m = /^(ext|type|kind|size|modified|date):(.+)$/i.exec(w), key = m && m[1].toLowerCase(), v = m && m[2].toLowerCase();
+      if (key === 'ext') {
+        var exts = v.split(',').map(function (e) { return e.replace(/^\./, ''); }).filter(Boolean);
+        if (exts.length) { out.ext = exts; out.labels.push(exts.map(function (e) { return '.' + e; }).join(', ')); return; }
+      } else if ((key === 'type' || key === 'kind') && TYPE_OF[v]) {
+        out.kind = TYPE_OF[v]; out.labels.push(KINDS.filter(function (k) { return k[0] === out.kind; })[0][1]); return;
+      } else if (key === 'size') {
+        var sm = /^(>=|<=|>|<)?(\d+(?:\.\d+)?)(b|kb?|mb?|gb?|tb?)?$/.exec(v);
+        if (sm) {
+          var bytes = parseFloat(sm[2]) * UNIT[sm[3] || 'b'];
+          if (sm[1] && sm[1][0] === '<') { out.max = bytes; out.labels.push('under ' + fmtSize(bytes)); }
+          else { out.min = bytes; out.labels.push('over ' + fmtSize(bytes)); }
+          return;
+        }
+      } else if (key === 'modified' || key === 'date') {
+        var dm = /^(\d+)([dwmy])$/.exec(v), days = WHEN[v] || (dm && +dm[1] * { d: 1, w: 7, m: 30, y: 365 }[dm[2]]);
+        if (days) { out.days = days; if (v === 'today' || v === 'yesterday') out.cal = v; out.labels.push(WHEN[v] ? 'modified ' + (v === 'today' || v === 'yesterday' ? v : 'this ' + v) : 'modified in the last ' + v); return; }
+      }
+      out.words.push(w);
+    });
+    out.text = out.words.join(' ');
+    out.toks = tokens(out.text);
+    out.any = !!(out.ext || out.kind || out.min != null || out.max != null || out.days);
+    return out;
+  }
+
+  // Demo items are dated against the demo computer's clock, so "modified:today" finds something there too.
+  function refNow(it) { return it.demo && !it.liveClock && window.LZ_DEMO && window.LZ_DEMO.now ? window.LZ_DEMO.now : Date.now(); }
+  function passesFilters(it, f, ageDays) {
+    if (f.ext && f.ext.indexOf(extOf(it.n)) < 0) return false;
+    if (f.kind && it.k !== f.kind) return false;
+    if (f.min != null && !(it.z >= f.min)) return false;
+    if (f.max != null && !(it.z != null && it.z <= f.max)) return false;
+    var days = f.days || ageDays;
+    if (days) {
+      var now = refNow(it), midnight = new Date(now).setHours(0, 0, 0, 0);
+      var from = f.cal === 'today' ? midnight : f.cal === 'yesterday' ? midnight - 864e5 : now - days * 864e5;
+      if (!it.t || it.t < from || (f.cal === 'yesterday' && it.t >= midnight)) return false;
+    }
+    return true;
+  }
+
+  function groupKey(it) {
+    if (state.group === 'kind') return it.k;
+    if (state.group === 'place') return it.src;
+    if (state.group === 'folder') return it.url ? (/^[a-z]+:\/\/([^\/?#]+)/i.exec(it.url) || [0, it.url])[1] : dirOf(it.p.replace(/\\/g, '/')) || '/';
+    return '';
+  }
+  function groupLabel(key) {
+    if (state.group === 'kind') return (KINDS.filter(function (k) { return k[0] === key; })[0] || [0, 'Other'])[1];
+    return key;
+  }
+
   function search() {
     var t0 = performance.now();
-    var q = state.q.trim(), toks = tokens(q), ql = q.toLowerCase();
-    var out = [];
-    if (toks.length) {
+    var pq = state.pq = parseQuery(state.q.trim()), toks = pq.toks, ql = pq.text.toLowerCase();
+    var bin = state.scope.type === 'trash';
+    var out = [], counts = {};
+    if (toks.length || pq.any || bin) {
       var ageDays = AGES.filter(function (a) { return a[0] === state.age; })[0][2];
-      var minT = ageDays ? Date.now() - ageDays * 864e5 : 0;
+      var filtering = pq.any || ageDays > 0;
       var now = Date.now();
       var lists = [];
       var sc = state.scope;
@@ -124,41 +194,57 @@
         state.folders.forEach(function (f) { if (f.id === sc.id) lists.push(f.items); });
       } else if (sc.type === 'place') {
         lists.push(state.nativeHits);
+      } else if (bin) {
+        lists.push(NATIVE ? state.nativeHits.filter(function (h) { return h.s === 'trash'; }) : demoBin());
       }
       for (var L = 0; L < lists.length; L++) {
         var arr = lists[L];
         for (var i = 0; i < arr.length; i++) {
           var it = arr[i];
-          if (state.kind !== 'all' && it.k !== state.kind) continue;
-          if (minT && (!it.t || it.t < minT)) continue;
+          if (filtering && !passesFilters(it, pq, ageDays)) continue;
           var lp = it.lp, ok = true, inName = true;
           for (var j = 0; j < toks.length; j++) {
             if (lp.indexOf(toks[j]) < 0) { ok = false; break; }
             if (inName && it.ln.indexOf(toks[j]) < 0) inName = false;
           }
           if (!ok) continue;
-          var ln = it.ln, sc;
-          if (ln === ql) sc = 1000;
-          else if (ln.lastIndexOf(ql, 0) === 0) sc = 600;
-          else if (ln.indexOf(ql) >= 0) sc = 420;
-          else if (inName) sc = 260;
-          else sc = 100;
-          if (it.t) sc += 60 * Math.exp(-(now - it.t) / (864e5 * 120));
+          // Counted before the kind filter, so the kind chips show what each one would give.
+          counts[it.k] = (counts[it.k] || 0) + 1;
+          if (state.kind !== 'all' && it.k !== state.kind) continue;
+          var ln = it.ln, score;
+          if (!toks.length) score = 100;
+          else if (ln === ql) score = 1000;
+          else if (ln.lastIndexOf(ql, 0) === 0) score = 600;
+          else if (ln.indexOf(ql) >= 0) score = 420;
+          else if (inName) score = 260;
+          else score = 100;
+          if (it.t) score += (bin ? 200 : 60) * Math.exp(-(now - it.t) / (864e5 * 120));
           if (it.native && it.s === 'files') {
             // Whole-disk results: dot-folders (caches, toolchains) and deep paths are rarely what someone means.
-            if (/[\/\\]\.[^\/\\]/.test(it.p)) sc -= 180;
-            sc -= Math.min(60, (it.p.match(/[\/\\]/g) || []).length * 4);
-            if (it.k !== 'folder') sc += 20;
+            if (/[\/\\]\.[^\/\\]/.test(it.p)) score -= 180;
+            score -= Math.min(60, (it.p.match(/[\/\\]/g) || []).length * 4);
+            if (it.k !== 'folder') score += 20;
           }
-          out.push({ it: it, sc: sc });
+          out.push({ it: it, sc: score });
         }
       }
       out.sort(function (a, b) { return b.sc - a.sc || a.it.n.length - b.it.n.length; });
     }
-    state.results = out.map(function (o) { return o.it; });
+    var results = out.map(function (o) { return o.it; });
+    // Grouping keeps each group's best result where it was, and pulls the rest of that group up behind it.
+    state.groups = null;
+    if (state.group !== 'none' && results.length) {
+      var order = [], by = {};
+      results.forEach(function (it) { var k = groupKey(it); if (!by[k]) { by[k] = []; order.push(k); } by[k].push(it); });
+      results = [];
+      state.groups = {};
+      order.forEach(function (k) { state.groups[k] = by[k].length; results = results.concat(by[k]); });
+    }
+    state.results = results;
+    state.counts = counts;
     state.ms = performance.now() - t0;
     state.searched = state.q;
-    if (NATIVE) requestNative(q);
+    if (NATIVE) requestNative(pq.text.trim());
     state.shown = Math.min(PAGE, state.results.length);
     state.sel = state.results.length ? 0 : -1;
     render();
@@ -167,20 +253,23 @@
   // Ask the desktop core. Earlier native hits stay on screen, filtered by the new query, until the answer lands.
   function nativeScope() { return state.scope.type === 'place' ? { path: state.scope.place.path, indexed: state.scope.place.indexed } : null; }
   function requestNative(q) {
-    var key = q + '\u0000' + (state.scope.type === 'place' ? state.scope.place.path : '*');
+    var bin = state.scope.type === 'trash';
+    var key = q + '\u0000' + (bin ? 'trash' : state.scope.type === 'place' ? state.scope.place.path : '*');
     if (key === state.nativeQ || key === state.nativePending) return;
     if (q && state.scope.type === 'everywhere' && !hasConsent('everywhere')) {
       state.nativeHits = [];
       if (!state.askedEverywhere) { state.askedEverywhere = true; askEverywhere(); }
       return;
     }
+    if (bin && !hasConsent('trash')) { state.nativeHits = []; return; }
     state.nativePending = key;
     q = key.split('\u0000')[0];
     clearTimeout(requestNative.timer);
     requestNative.timer = setTimeout(function () {
       var seq = ++state.nativeSeq;
-      if (!q) { state.nativeHits = []; state.nativeQ = key; state.nativePending = null; return; }
-      var srcs = Object.keys(state.native).filter(function (k) { return state.native[k]; });
+      // An empty query lists only the bin (most recently deleted first); everywhere else it means no search.
+      if (!q && !bin) { state.nativeHits = []; state.nativeQ = key; state.nativePending = null; return; }
+      var srcs = bin ? ['trash'] : Object.keys(state.native).filter(function (k) { return state.native[k]; });
       NATIVE.locate(q, srcs, nativeScope()).then(function (out) {
         if (seq !== state.nativeSeq) return;
         if (out.licence_required) {
@@ -195,6 +284,7 @@
           return prep(h);
         });
         state.nativeQ = key; state.nativePending = null; state.nativeMs = out.ms;
+        state.nativeErrors = out.errors;
         if (out.errors.length) console.warn('LocatorZero sources:', out.errors.join('; '));
         search();
       }, function (e) {
@@ -232,8 +322,9 @@
     return html + esc(text.slice(pos));
   }
 
-  function dirOf(p) { var i = p.lastIndexOf('/'); return i > 0 ? p.slice(0, i) : ''; }
-  function canPreview(it) { return it.k !== 'folder' && (it.demo || it.h || it.file || (it.native && it.s === 'files')); }
+  function dirOf(p) { var i = Math.max(p.lastIndexOf('/'), p.lastIndexOf('\\')); return i > 0 ? p.slice(0, i) : ''; }
+  function canPreview(it) { return it.k !== 'folder' && it.s !== 'trash' && (it.demo || it.h || it.file || (it.native && it.s === 'files')); }
+  function canRestore(it) { return it.s === 'trash' && (it.demo || (!!it.id && !!(state.nativeStatus && state.nativeStatus.can_restore))); }
   function lastSeg(p) { var m = /[^\/\\]*$/.exec(p); return m ? m[0] : p; }
   // Addresses are shown without ?query and #fragment, which is where sign-in tokens and session ids live.
   // Copy and Open still use the full address.
@@ -241,18 +332,20 @@
   function whereLine(it) { return it.url ? bareUrl(it.url) : (lastSeg(it.p) === it.n ? dirOf(it.p) : it.p); }
 
   function rowHtml(it, idx, toks) {
-    var k = it.k;
-    return '<li class="r" role="option" id="r' + idx + '" data-i="' + idx + '" aria-selected="' + (idx === state.sel) + '">' +
+    var k = it.k, bin = it.s === 'trash';
+    return '<li class="r' + (bin ? ' r-bin' : '') + '" role="option" id="r' + idx + '" data-i="' + idx + '" aria-selected="' + (idx === state.sel) + '">' +
       '<div class="r-ico k-' + kindKey(k) + '">' + (k === 'other' ? esc(extOf(it.n).slice(0, 4) || 'file') : KIND_LABEL[k]) + '</div>' +
       '<div class="r-main">' +
         '<div class="r-name">' + highlight(it.n, toks) + '</div>' +
-        '<div class="r-path"><bdi>' + highlight(whereLine(it), toks) + '</bdi></div>' +
+        '<div class="r-path"><bdi>' + (bin && it.id !== undefined ? 'from ' : '') + highlight(whereLine(it), toks) + '</bdi></div>' +
         '<div class="r-meta"><span class="src-badge">' + esc(it.src) + (it.demo ? ' · demo' : '') + '</span>' +
           (it.z ? '<span>' + fmtSize(it.z) + '</span>' : '') +
-          (it.t ? '<span title="' + esc(fmtDate(it.t)) + '">' + fmtAgo(it.t) + '</span>' : '') + '</div>' +
+          (it.t ? '<span title="' + esc(fmtDate(it.t)) + '">' + (bin ? 'deleted ' : '') + fmtAgo(it.t) + '</span>' : '') + '</div>' +
       '</div>' +
       '<div class="r-act">' +
         (canPreview(it) ? '<button class="btn btn-soft" data-act="preview">Preview</button>' : '') +
+        (canRestore(it) ? '<button class="btn btn-primary" data-act="restore">Restore</button>' : '') +
+        (bin && !canRestore(it) && it.native ? '<button class="btn btn-ghost" data-act="bin">Show in ' + esc(binLabel()) + '</button>' : '') +
         (it.native && it.s === 'files' ? '<button class="btn btn-ghost" data-act="reveal">Show in folder</button>' : '') +
         (it.url ? '<button class="btn btn-ghost" data-act="open">Open</button>' : '') +
         '<button class="btn btn-ghost" data-act="copy" aria-label="Copy ' + (it.url ? 'address' : 'path') + '">Copy</button>' +
@@ -282,8 +375,18 @@
   }
 
   function renderList() {
-    var toks = tokens(state.q), html = '';
-    for (var i = 0; i < state.shown; i++) html += rowHtml(state.results[i], i, toks);
+    var toks = state.pq ? state.pq.toks : tokens(state.q), html = '', prev = null;
+    for (var i = 0; i < state.shown; i++) {
+      var it = state.results[i];
+      if (state.groups) {
+        var key = groupKey(it);
+        if (key !== prev) {
+          prev = key;
+          html += '<li class="r-group" role="presentation"><span class="r-group-name' + (state.group === 'folder' ? ' mono' : '') + '" title="' + esc(groupLabel(key)) + '"><bdi>' + esc(groupLabel(key)) + '</bdi></span><em>' + nf(state.groups[key]) + '</em></li>';
+        }
+      }
+      html += rowHtml(it, i, toks);
+    }
     $('results').innerHTML = html;
     $('moreBtn').hidden = state.shown >= state.results.length;
     verifyVisible();
@@ -291,7 +394,7 @@
   }
 
   function render() {
-    var has = state.q.trim().length > 0;
+    var has = state.q.trim().length > 0 || state.scope.type === 'trash';
     document.body.classList.toggle('has-query', has);
     $('resultsWrap').hidden = !has;
     renderScope();
@@ -306,6 +409,7 @@
       : n ? '✓ Search complete · <b>' + nf(n) + '</b> location' + (n === 1 ? '' : 's') + ' · ' + ms
       : '✓ Search complete · no matches · ' + ms;
     var none = !n && !looking;
+    renderFacets(n);
     if (none) renderEmpty(ms);
     $('empty').hidden = !none || state.tab !== 'list';
     // Tabs stay available with no results: the map then shows every place that was searched.
@@ -317,21 +421,49 @@
     updateActiveDescendant();
   }
 
+  // Above the results: one chip per kind that was found, with its count; when it was modified; and how to group.
+  function renderFacets(n) {
+    var counts = state.counts || {}, total = 0;
+    Object.keys(counts).forEach(function (k) { total += counts[k]; });
+    $('facets').hidden = !total;
+    if (!total) return;
+    var chips = '<button class="chip" data-fkind="all" aria-pressed="' + (state.kind === 'all') + '">All <em>' + nf(total) + '</em></button>';
+    KINDS.forEach(function (k) {
+      if (k[0] === 'all' || !(counts[k[0]] || state.kind === k[0])) return;
+      chips += '<button class="chip" data-fkind="' + k[0] + '" aria-pressed="' + (state.kind === k[0]) + '"><i class="kd k-' + kindKey(k[0]) + '"></i>' + esc(k[1]) + ' <em>' + nf(counts[k[0]] || 0) + '</em></button>';
+    });
+    $('facetKinds').innerHTML = chips;
+    if (!$('facetAge').options.length) $('facetAge').innerHTML = AGES.map(function (a) { return '<option value="' + a[0] + '">' + esc(a[1]) + '</option>'; }).join('');
+    $('facetAge').value = state.age;
+    Array.prototype.forEach.call($('groupSeg').querySelectorAll('[data-group]'), function (b) { b.setAttribute('aria-pressed', String(b.dataset.group === state.group)); });
+  }
+  function setKind(k) { state.kind = k; renderChips(); search(); }
+  function setGroup(g) { state.group = g; lsSet('lz.group', g); search(); }
+
   // No results: say so plainly, say where we looked, and offer the next step.
   function renderEmpty(ms) {
     var q = state.q.trim(), tips = [];
+    if (!q && state.scope.type === 'trash') {
+      $('empty').innerHTML = '<div class="empty-face" aria-hidden="true">🗑️</div><h3>Your ' + esc(binLabel()) + ' is empty</h3>' +
+        '<p class="muted">Nothing is waiting there: it was emptied, or nothing was deleted to it.</p>' +
+        '<ul class="empty-tips"><li>Deleted something anyway? <button class="chip" data-deleted="1">What to do if it skipped the bin</button></li></ul>';
+      return;
+    }
     var chip = function (t) { return '<button class="chip" data-try="' + esc(t) + '">' + esc(t) + '</button>'; };
     var words = q.split(/\s+/).filter(Boolean);
     if (words.length > 1) tips.push('Every word must match. Try one word at a time: ' + words.slice(0, 4).map(chip).join(' '));
     else if (q.length > 2) tips.push('Try fewer letters: ' + chip(q.slice(0, -1)) + (q.length > 5 ? ' ' + chip(q.slice(0, Math.ceil(q.length / 2))) : ''));
     tips.push('Names don\'t need to be complete, but the letters must be in that order: <i>budg</i> finds <i>Budget_2026.xlsx</i>.');
+    if (state.pq && state.pq.labels.length) tips.push('Your search has filters (' + esc(state.pq.labels.join(', ')) + ').' + (NATIVE && !state.pq.toks.length ? ' Add a few letters of the name too.' : ' Try it without them.'));
+    if (state.scope.type !== 'trash') tips.push('Deleted it by mistake? <button class="chip" data-bin="1">🗑️ Search the ' + esc(binLabel()) + '</button> <button class="chip" data-deleted="1">What else can I do?</button>');
+    else tips.push('Not in the ' + esc(binLabel()) + '? <button class="chip" data-deleted="1">What to do if it skipped the bin</button>');
     var filt = [];
     if (state.kind !== 'all') filt.push(KINDS.filter(function (k) { return k[0] === state.kind; })[0][1]);
     if (state.age !== 'any') filt.push('last ' + AGES.filter(function (a) { return a[0] === state.age; })[0][1]);
     if (filt.length) tips.push('Filters are on (' + esc(filt.join(', ')) + '). <button class="chip" data-clear-filters="1">Clear filters</button>');
     if (state.scope.type !== 'all' && state.scope.type !== 'everywhere') tips.push('You searched one place only. <button class="chip" data-scope="' + (NATIVE ? 'everywhere' : 'all') + '">Search everywhere</button>');
     tips.push('Look somewhere else: <button class="chip" data-open-scope="1">Search in…</button>' + (NATIVE ? '' : ' <button class="chip" data-choose="1">Choose a folder</button>'));
-    $('empty').innerHTML = '<div class="empty-face" aria-hidden="true">🔍</div>' +
+    $('empty').innerHTML = '<div class="empty-face" aria-hidden="true">' + (state.scope.type === 'trash' ? '🗑️' : '🔍') + '</div>' +
       '<h3>No matches for “' + esc(q) + '”</h3>' +
       '<p class="muted">The search finished in ' + esc(ms) + ' and looked in <b>' + esc($('scopeLabel').textContent) + '</b>. There is nothing by that name there.</p>' +
       '<ul class="empty-tips">' + tips.map(function (t) { return '<li>' + t + '</li>'; }).join('') + '</ul>';
@@ -349,6 +481,15 @@
   function renderScope() {
     renderScopeBtn();
     var sc = state.scope, all = ' · <button class="link-btn" data-scope="' + (NATIVE ? 'everywhere' : 'all') + '">Search everywhere</button>';
+    if (sc.type === 'trash') {
+      var err = NATIVE && (state.nativeErrors || []).filter(function (e) { return /^bin:/.test(e); })[0];
+      $('scopeLine').innerHTML = NATIVE
+        ? (hasConsent('trash') ? 'Searching only your <b>' + esc(binLabel()) + '</b>' + (state.q.trim() ? '' : ', most recently deleted first') +
+            ' · <button class="link-btn" data-open-bin="1">Open the ' + esc(binLabel()) + '</button>' + (err ? '<br><span class="warn-text">' + esc(err.replace(/^bin:\s*/, '')) + '</span>' : '')
+          : 'LocatorZero needs your OK before it looks in your ' + esc(binLabel()) + ' · <button class="link-btn" data-consent="trash">Review and allow</button>') + all
+        : 'Searching a <b>made-up ' + esc(binLabel()) + '</b> (demo). Your browser can\'t see your real one; the <a href="download.html">desktop app</a> can.' + all;
+      return;
+    }
     if (sc.type === 'place') {
       var listing = !sc.place.indexed ? (state.placeDone ? ' (' + nf(state.placeCount || 0) + ' items listed in memory)' : ' · listing… ' + nf(state.placeCount || 0) + ' items so far') : '';
       $('scopeLine').innerHTML = 'Searching only in <b>' + esc(sc.place.label) + '</b> <span class="mono small">' + esc(sc.place.path) + '</span>' + listing + all;
@@ -375,7 +516,7 @@
     state.folders.forEach(function (f) {
       parts.push('<b>' + esc(f.name) + '</b> (' + nf(f.items.length) + (f.done ? '' : '… indexing') + ')');
     });
-    var filt = [];
+    var filt = (state.pq && state.pq.labels.slice()) || [];
     if (state.kind !== 'all') filt.push(KINDS.filter(function (k) { return k[0] === state.kind; })[0][1]);
     if (state.age !== 'any') filt.push('last ' + AGES.filter(function (a) { return a[0] === state.age; })[0][1]);
     $('scopeLine').innerHTML = parts.length
@@ -444,6 +585,7 @@
   function searchedPlaces() {
     var sc = state.scope, out = [];
     if (sc.type === 'place') return [sc.place.label];
+    if (sc.type === 'trash') return [binLabel() + (NATIVE ? '' : ' (demo)')];
     if (sc.type === 'folder') {
       state.folders.forEach(function (f) { if (f.id === sc.id) out.push('Your folder · ' + f.name); });
       return out;
@@ -751,11 +893,124 @@
     }).join('');
   }
 
+  // ---------- recycle bin ----------
+  // Desktop: the user's own Recycle Bin or Trash, read live by the core after a separate OK (sources/trash.rs), with
+  // Restore behind a second confirmation. Web: a made-up bin, so anyone can try the flow; nothing is moved.
+  function binLabel() { return (state.nativeStatus && state.nativeStatus.bin) || binName(); }
+  var demoBinItems = null;
+  function demoBin() {
+    if (demoBinItems) return demoBinItems;
+    var H = '/Users/alex', T = Date.now(), HR = 36e5, D = 864e5, MB = 1048576;
+    demoBinItems = [
+      ['Budget_2026 (final).xlsx', H + '/Documents/Finance', 48213, 2 * HR],
+      ['Q3 board deck.pptx', H + '/Documents/Work', 6.2 * MB, 26 * HR],
+      ['IMG_2207.HEIC', H + '/Pictures/2026/Goa', 3.1 * MB, 3 * D],
+      ['thesis-draft-v7.docx', H + '/Documents/University', 1.4 * MB, 5 * D],
+      ['invoice-0042.pdf', H + '/Downloads', 220 * 1024, 9 * D],
+      ['project-atlas', H + '/Projects', null, 12 * D],
+      ['passport-scan.pdf', H + '/Documents/Travel', 0.9 * MB, 20 * D],
+      ['wedding-video-edit.mov', H + '/Movies', 1210 * MB, 26 * D]
+    ].map(function (r, i) {
+      return prep({ n: r[0], p: r[1] + '/' + r[0], s: 'trash', src: binLabel(), k: r[2] == null ? 'folder' : kindOf(r[0]),
+        z: r[2] == null ? null : Math.round(r[2]), t: T - r[3], demo: true, liveClock: true, id: 'demo-' + i });
+    });
+    return demoBinItems;
+  }
+
+  function openBinScope() {
+    if (!NATIVE || hasConsent('trash')) return setScope({ type: 'trash' });
+    askConsent({
+      key: 'trash', ico: '🗑️', promise: false, yes: 'Allow and look',
+      title: 'Allow LocatorZero to look in your ' + binLabel() + '?',
+      reads: ['<b>Names, original folders, sizes and deletion dates</b> of what is in your ' + esc(binLabel()) + ', read live and never copied',
+        '<b>Only your own ' + esc(binLabel()) + '.</b> Other accounts on this computer stay out of reach, and no administrator rights are asked for',
+        '<b>Nothing is restored until you press Restore and confirm</b>, and nothing is ever overwritten',
+        'It asks again the next time you open LocatorZero']
+    }).then(function (ok) { if (ok) setScope({ type: 'trash' }); else renderScope(); });
+  }
+
+  var restoring = null;
+  function askRestore(it) {
+    restoring = it;
+    $('rsTitle').textContent = 'Put “' + it.n + '” back?';
+    $('rsWhere').textContent = 'Back to ' + (dirOf(it.p) || it.p);
+    $('rsMsg').hidden = true; $('rsYes').hidden = false; $('rsYes').disabled = false;
+    $('rsNo').textContent = 'Cancel';
+    $('restore').showModal();
+  }
+  function doRestore() {
+    var it = restoring; if (!it) return;
+    var folder = dirOf(it.p) || it.p;
+    var done = function (msg) {
+      if ($('restore').open) $('restore').close();
+      restoring = null; toast(msg); search();
+    };
+    if (it.demo) {
+      demoBinItems = demoBin().filter(function (x) { return x !== it; });
+      return done('Demo: “' + it.n + '” is back in ' + lastSeg(folder) + ' ♻️ In the desktop app this puts the real file back.');
+    }
+    $('rsYes').disabled = true;
+    NATIVE.restore([it.id]).then(function () {
+      state.nativeHits = state.nativeHits.filter(function (h) { return h !== it; });
+      state.nativeQ = null;
+      done('“' + it.n + '” is back in ' + folder + ' ♻️');
+    }, function (e) {
+      // Kept open with the reason, so nothing is lost in a toast.
+      $('rsMsg').textContent = String(e); $('rsMsg').hidden = false;
+      $('rsYes').hidden = true; $('rsNo').textContent = 'OK';
+    });
+  }
+
+  // "Deleted by mistake?" help: text only, per system. Nothing is scanned.
+  function guessOs() {
+    var p = (navigator.platform || '') + ' ' + navigator.userAgent;
+    return /Win/.test(p) ? 'win' : /Mac|iPhone|iPad/.test(p) ? 'mac' : /Linux|X11|CrOS/.test(p) ? 'linux' : 'win';
+  }
+  function setDeletedOs(os) {
+    Array.prototype.forEach.call($('deleted').querySelectorAll('.d-tabs [data-os]'), function (b) { b.setAttribute('aria-selected', String(b.dataset.os === os)); });
+    Array.prototype.forEach.call($('deleted').querySelectorAll('.d-os'), function (e) { e.hidden = e.dataset.os !== os; });
+  }
+  function openDeleted() {
+    setSidebar(false);
+    var os = state.nativeStatus ? { windows: 'win', macos: 'mac' }[state.nativeStatus.platform] || 'linux' : guessOs();
+    setDeletedOs(os);
+    applyBinNames();
+    if (!$('deleted').open) $('deleted').showModal();
+  }
+
+  // ---------- connected places (desktop) ----------
+  function placeSpace(p) {
+    if (!p.total) return p.fs || '';
+    return fmtSize(p.free) + ' free of ' + fmtSize(p.total) + (p.fs ? ' · ' + p.fs : '');
+  }
+  function renderPlaces() {
+    if (!NATIVE) return;
+    NATIVE.places().then(function (places) {
+      state.listedPlaces = places;
+      $('placeList').innerHTML = places.length ? places.map(function (p, i) {
+        var used = p.total ? Math.round(100 * (1 - p.free / p.total)) : null;
+        return '<li><button class="place-row" data-pi="' + i + '" title="Search only in ' + esc(p.label) + '">' +
+          '<span class="pl-ico" aria-hidden="true">' + (PLACE_ICO[p.kind] || '📁') + '</span>' +
+          '<span class="pl-main"><b>' + esc(p.label) + '</b><small class="mono">' + esc(p.path) + '</small>' +
+          (used != null ? '<span class="pl-bar' + (used > 90 ? ' full' : '') + '" role="img" aria-label="' + used + '% used"><i class="w' + Math.round(used / 5) * 5 + '"></i></span>' : '') +
+          '<small>' + esc(placeSpace(p)) + '</small></span></button></li>';
+      }).join('') : '<li class="muted small">No drives found.</li>';
+    }, function () {});
+  }
+
   // ---------- version and what's new ----------
   // Keep LZ_VERSION equal to desktop/src-tauri/tauri.conf.json (an end-to-end test checks it), and add each release
   // to CHANGES and CHANGELOG.md.
-  var LZ_VERSION = '0.2.0';
+  var LZ_VERSION = '0.3.0';
   var CHANGES = [
+    { v: '0.3.0', date: 'October 2026', title: 'Get deleted files back, and find things faster', items: [
+      '<b>Recycle Bin search, with Restore</b> (Search in → <span class="cl-bin">Recycle Bin</span>): type part of a name and see what you deleted, when, and the folder it came from. <b>Restore</b> puts it back there after you confirm, and never overwrites anything.',
+      '<b>Deleted by mistake?</b> (menu): what to do when a file skipped the bin, for Windows, macOS and Linux.',
+      '<b>Kind chips with counts</b> above your results, and <b>Group</b> by type, place or folder.',
+      '<b>Search tricks</b>: <code>ext:pdf</code>, <code>size:&gt;10mb</code>, <code>modified:week</code>, <code>type:image</code>, mixed with any words.',
+      '<b>Connected places</b> (desktop menu): every drive, USB stick, network and cloud folder, with its free space and file system.',
+      '<b>Ctrl Shift Space</b> (⌘ Shift Space on a Mac) brings LocatorZero to the front from any app, ready to type.',
+      'The browser version now says plainly, under the search field, what it can and cannot see.'] },
     { v: '0.2.0', date: 'October 2026', title: 'Clean up: free up space, safely', items: [
       '<b>Clean up</b> (menu → Clean up): finds files stored more than once, and your biggest files, in a place you choose, in seconds.',
       'See them as a list, or on a <b>map</b> of every folder that holds a copy. Green stays, red goes.',
@@ -804,7 +1059,7 @@
   var CL_MAP_GROUPS = 40, CL_LIST_GROUPS = 200;
   function binName() { return /Win/.test(navigator.platform || '') ? 'Recycle Bin' : 'Trash'; }
   function applyBinNames() {
-    var bin = binName();
+    var bin = binLabel();
     Array.prototype.forEach.call(document.querySelectorAll('.cl-bin'), function (e) { e.textContent = bin; });
   }
   function demoScan() {
@@ -1415,10 +1670,12 @@
       var seen = {};
       places.concat(state.sessionPlaces).forEach(function (p, i) {
         if (seen[p.path]) return; seen[p.path] = 1;
-        html += scopeItem('data-place="' + i + '"', PLACE_ICO[p.kind] || '📁', p.label, p.path + (p.indexed ? '' : ' · asks first'), sc.type === 'place' && sc.place.path === p.path);
+        var space = placeSpace(p);
+        html += scopeItem('data-place="' + i + '"', PLACE_ICO[p.kind] || '📁', p.label, (space ? space + ' · ' : '') + p.path + (p.indexed ? '' : ' · asks first'), sc.type === 'place' && sc.place.path === p.path);
       });
       state.menuPlaces = places.concat(state.sessionPlaces);
       html += scopeItem('data-choose="1"', '📂', 'Choose a folder…', 'Pick any folder. Asks first', false);
+      html += scopeItem('data-bin="1"', '🗑️', binLabel(), 'Deleted files, with Restore. Asks first', sc.type === 'trash');
     } else {
       html += scopeItem('data-scope="all"', '🌐', 'Everything here', 'The demo computer and folders you\'ve added', sc.type === 'all');
       html += scopeItem('data-scope="demo"', '🧪', 'Demo computer', 'A made-up computer to try things on', sc.type === 'demo');
@@ -1426,6 +1683,7 @@
         html += scopeItem('data-folder="' + f.id + '"', '📁', f.name, nf(f.items.length) + ' items · this tab only', sc.type === 'folder' && sc.id === f.id);
       });
       html += scopeItem('data-choose="1"', '📂', 'Choose a folder on this device…', 'Asks first. Nothing is uploaded', false);
+      html += scopeItem('data-bin="1"', '🗑️', binLabel() + ' (demo)', 'Made-up deleted files, to try Restore', sc.type === 'trash');
       html += '<p class="sm-foot">Your whole computer, every drive and browser: the desktop app.</p>';
     }
     $('scopeMenu').innerHTML = html;
@@ -1435,6 +1693,7 @@
     if (sc.type === 'demo') { ico = '🧪'; label = 'Demo computer'; }
     if (sc.type === 'folder') { ico = '📁'; var f = state.folders.filter(function (x) { return x.id === sc.id; })[0]; label = f ? f.name : 'Folder'; }
     if (sc.type === 'place') { ico = PLACE_ICO[sc.place.kind] || '📁'; label = sc.place.label; }
+    if (sc.type === 'trash') { ico = '🗑️'; label = binLabel(); }
     $('scopeIco').textContent = ico; $('scopeLabel').textContent = label;
     $('scopeBtn').setAttribute('aria-label', 'Search in: ' + label + '. Change where to search');
   }
@@ -1468,6 +1727,8 @@
     state.nativeHits = []; state.nativeQ = null;
     state.scope = { type: NATIVE ? 'everywhere' : 'all' };
     state.sessionPlaces = []; state.consented = {};
+    demoBinItems = null; restoring = null;
+    if ($('restore').open) $('restore').close();
     clearInterval(state.placeTimer);
     if (NATIVE) NATIVE.forget().catch(function () {});
     CL.token = null; clearInterval(CL.timer); CL.scan = null; CL.sel = {};
@@ -1615,6 +1876,8 @@
     else if (b.dataset.scope) setScope({ type: b.dataset.scope });
     else if (b.dataset.openScope) openScopeMenu();
     else if (b.dataset.choose) chooseFolder();
+    else if (b.dataset.bin) openBinScope();
+    else if (b.dataset.deleted) openDeleted();
   });
   $('q').addEventListener('keydown', function (e) {
     if (e.key === 'ArrowDown') { e.preventDefault(); state.navigated = true; select(state.sel + 1, true); }
@@ -1635,6 +1898,8 @@
     if (act && act.dataset.act === 'preview') openPreview(it);
     else if (act && act.dataset.act === 'copy') copyPath(it);
     else if (act && (act.dataset.act === 'reveal' || act.dataset.act === 'open')) handoff(it);
+    else if (act && act.dataset.act === 'restore') askRestore(it);
+    else if (act && act.dataset.act === 'bin') NATIVE.reveal(it.p, null).catch(function (err) { toast(String(err)); });
   });
   $('results').addEventListener('dblclick', function (e) {
     var li = e.target.closest('.r'); if (li) { var it = state.results[+li.dataset.i]; if (canPreview(it)) openPreview(it); }
@@ -1684,7 +1949,7 @@
   $('whatsNewBtn').addEventListener('click', openWhatsNew);
   $('wnClose').addEventListener('click', function () { $('whatsNew').close(); });
   $('wnOk').addEventListener('click', function () { $('whatsNew').close(); });
-  $('wnTry').addEventListener('click', function () { $('whatsNew').close(); openClean(); });
+  $('wnTry').addEventListener('click', function () { $('whatsNew').close(); openBinScope(); });
   $('whatsNew').addEventListener('close', function () { if (!$('clean').open) afterIntro(); });
   $('aboutSource').addEventListener('click', function (e) { e.preventDefault(); openExternal(e.currentTarget.href); });
   $('clClose').addEventListener('click', function () { $('clean').close(); });
@@ -1746,6 +2011,7 @@
     var b = e.target.closest('.scope-item'); if (!b) return;
     closeScopeMenu();
     if (b.dataset.choose) return chooseFolder();
+    if (b.dataset.bin) return openBinScope();
     if (b.dataset.place) return choosePlace(state.menuPlaces[+b.dataset.place]);
     if (b.dataset.folder) return setScope({ type: 'folder', id: +b.dataset.folder });
     if (b.dataset.scope === 'demo' && !state.demo) { state.demo = true; $('srcDemo').checked = true; }
@@ -1761,8 +2027,10 @@
     if (!$('scopeMenu').hidden && !e.target.closest('#scopeMenu, #scopeBtn')) closeScopeMenu();
   });
   $('scopeLine').addEventListener('click', function (e) {
-    var b = e.target.closest('[data-scope], [data-consent]'); if (!b) return;
-    if (b.dataset.consent) askEverywhere(); else setScope({ type: b.dataset.scope });
+    var b = e.target.closest('[data-scope], [data-consent], [data-open-bin]'); if (!b) return;
+    if (b.dataset.openBin) NATIVE.openBin().catch(function (err) { toast(String(err)); });
+    else if (b.dataset.consent === 'trash') openBinScope();
+    else if (b.dataset.consent) askEverywhere(); else setScope({ type: b.dataset.scope });
   });
   $('dirInput').addEventListener('change', function () { addFromInput(Array.from($('dirInput').files)); $('dirInput').value = ''; });
   $('tryDemo').addEventListener('click', function () {
@@ -1777,7 +2045,32 @@
   $('recentList').addEventListener('click', function (e) { var b = e.target.closest('[data-q]'); if (b) { $('q').value = state.q = b.dataset.q; search(); setSidebar(false); $('q').focus(); } });
   $('wipeNow').addEventListener('click', function () { wipe(); setSidebar(false); });
 
-  $('menuBtn').addEventListener('click', function () { setSidebar(true); });
+  $('facetKinds').addEventListener('click', function (e) { var b = e.target.closest('[data-fkind]'); if (b) setKind(b.dataset.fkind === state.kind && b.dataset.fkind !== 'all' ? 'all' : b.dataset.fkind); });
+  $('facetAge').addEventListener('change', function () { state.age = $('facetAge').value; renderChips(); search(); });
+  $('groupSeg').addEventListener('click', function (e) { var b = e.target.closest('[data-group]'); if (b) setGroup(b.dataset.group); });
+  $('tricks').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-trick]'); if (!b) return;
+    var base = $('q').value.trim() || (NATIVE ? '' : 'a');
+    $('q').value = state.q = (base ? base + ' ' : '') + b.dataset.trick;
+    setSidebar(false); search(); $('q').focus();
+    if (!base) toast('Now type a few letters of the name too.');
+  });
+  $('safetyHow').addEventListener('click', function () { $('verifyBtn').click(); });
+  $('deletedSide').addEventListener('click', openDeleted);
+  $('dClose').addEventListener('click', function () { $('deleted').close(); });
+  $('deleted').addEventListener('click', function (e) {
+    if (e.target === $('deleted')) return $('deleted').close();
+    var t = e.target.closest('.d-tabs [data-os]'); if (t) setDeletedOs(t.dataset.os);
+  });
+  $('dSearchBin').addEventListener('click', function () { $('deleted').close(); openBinScope(); });
+  $('rsNo').addEventListener('click', function () { $('restore').close(); restoring = null; });
+  $('rsYes').addEventListener('click', doRestore);
+  $('placeList').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-pi]'); if (!b) return;
+    setSidebar(false); choosePlace(state.listedPlaces[+b.dataset.pi]);
+  });
+
+  $('menuBtn').addEventListener('click', function () { setSidebar(true); renderPlaces(); });
   $('sidebarClose').addEventListener('click', function () { setSidebar(false); });
   $('scrim').addEventListener('click', function () { setSidebar(false); });
   $('themeBtn').addEventListener('click', toggleTheme);
@@ -1808,11 +2101,12 @@
 
   document.addEventListener('keydown', function (e) {
     markActive();
-    if ($('welcome').open || $('verify').open || $('plans').open || $('consent').open) return;
+    if ($('welcome').open || $('verify').open || $('plans').open || $('consent').open || $('deleted').open || $('restore').open) return;
     if (e.key === 'Escape') {
       if (!$('preview').hidden) closePreview();
       else if ($('sidebar').classList.contains('open')) setSidebar(false);
       else if (state.q) { $('q').value = state.q = ''; search(); $('q').focus(); }
+      else if (state.scope.type === 'trash') setScope({ type: NATIVE ? 'everywhere' : 'all' });
       return;
     }
     if (isTyping(e) || e.ctrlKey || e.metaKey || e.altKey) return;
@@ -1830,9 +2124,17 @@
   // ---------- start ----------
   if (NATIVE) {
     state.demo = false; $('srcDemo').checked = false;
-    NATIVE.status().then(function (st) { state.nativeStatus = st; renderNativeSources(); renderAbout(); }, function () {});
+    NATIVE.status().then(function (st) {
+      state.nativeStatus = st; renderNativeSources(); renderAbout(); applyBinNames();
+      if (st.hotkey) {
+        $('hotkeyKeys').innerHTML = st.hotkey.split(' ').map(function (k) { return '<kbd>' + esc(k) + '</kbd>'; }).join('');
+        Array.prototype.forEach.call(document.querySelectorAll('.hotkey-row'), function (e) { e.hidden = false; });
+      }
+    }, function () {});
+    NATIVE.onFocusRequest(function () { markActive(); $('q').focus(); $('q').select(); });
     refreshLicence();
   }
+  if (/^(kind|place|folder)$/.test(lsGet('lz.group') || '')) state.group = lsGet('lz.group');
   applyTheme(document.documentElement.getAttribute('data-theme') || 'light');
   renderChips(); renderFolders(); renderRecent(); render();
   requestAnimationFrame(placeInk);

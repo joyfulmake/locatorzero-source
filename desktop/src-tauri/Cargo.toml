@@ -1,6 +1,6 @@
 [package]
 name = "locatorzero"
-version = "0.2.0"
+version = "0.3.0"
 description = "Where does it live? A private, offline, read-only locator."
 edition = "2021"
 license = "LicenseRef-LocatorZero-Source-Available"
@@ -20,13 +20,15 @@ tauri = { version = "2", features = [] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 rusqlite = { version = "0.32", features = ["bundled"] }
-sysinfo = { version = "0.33", default-features = false, features = ["system", "user"] }
+sysinfo = { version = "0.33", default-features = false, features = ["system", "user", "disk"] }
 base64 = "0.22"
 zeroize = "1"
 ed25519-dalek = "2"
 tauri-plugin-dialog = "2"
 # Moves files the user confirmed in Clean up to the Recycle Bin or Trash. No network code.
 trash = "5"
+# One keyboard shortcut that brings LocatorZero to the front from any app. No network code.
+tauri-plugin-global-shortcut = "2"
 
 [dev-dependencies]
 tempfile = "3"

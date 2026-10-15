@@ -66,6 +66,29 @@
     </section>
 
     <section class="side-sec">
+      <h3>Deleted by mistake?</h3>
+      <p class="muted small">Find it in the <span class="cl-bin">Recycle Bin</span> and put it back, or see what to do if it skipped the bin.</p>
+      <button class="btn btn-soft wide" id="deletedSide">🗑️ Get a deleted file back</button>
+    </section>
+
+    <section class="side-sec desktop-only">
+      <h3>Connected places</h3>
+      <p class="muted small">Drives, USB sticks, network and cloud folders this computer can see, with their space.</p>
+      <ul class="place-list" id="placeList"><li class="muted small">Open the menu to refresh.</li></ul>
+    </section>
+
+    <section class="side-sec">
+      <h3>Search tricks</h3>
+      <p class="muted small">Add these to any search. Click one to try it.</p>
+      <ul class="tricks" id="tricks">
+        <li><button class="chip mono" data-trick="ext:pdf">ext:pdf</button> <span>file type, or several: <code>ext:jpg,png</code></span></li>
+        <li><button class="chip mono" data-trick="size:>10mb">size:&gt;10mb</button> <span>bigger or smaller (<code>size:&lt;1kb</code>)</span></li>
+        <li><button class="chip mono" data-trick="modified:week">modified:week</button> <span>today, yesterday, week, month, year, or <code>30d</code></span></li>
+        <li><button class="chip mono" data-trick="type:image">type:image</button> <span>document, sheet, image, video, code, archive, folder, web</span></li>
+      </ul>
+    </section>
+
+    <section class="side-sec">
       <h3>Filter by kind</h3>
       <div class="chips" id="kindChips"></div>
       <h3 class="mt">Modified</h3>
@@ -86,13 +109,14 @@
 
     <section class="side-sec">
       <h3>Keyboard</h3>
-      <dl class="keys">
+      <dl class="keys" id="keysList">
         <dt><kbd>/</kbd></dt><dd>Jump to search</dd>
         <dt><kbd>↑</kbd><kbd>↓</kbd></dt><dd>Move through results</dd>
         <dt><kbd>Enter</kbd></dt><dd>Search; after <kbd>↓</kbd>, preview that result</dd>
         <dt><kbd>1</kbd><kbd>2</kbd></dt><dd>Locations / Map tab</dd>
         <dt><kbd>Esc</kbd></dt><dd>Close / clear</dd>
         <dt><kbd>S</kbd> <kbd>T</kbd> <kbd>?</kbd></dt><dd>Sidebar, theme, tour</dd>
+        <dt class="hotkey-row" hidden id="hotkeyKeys"></dt><dd class="hotkey-row" hidden>Open LocatorZero from any app</dd>
       </dl>
     </section>
 
@@ -144,12 +168,11 @@
           on-device
         </span>
       </div>
+      <p class="safety-line web-only" id="safetyLine">🔒 <b>Browser version:</b> <span class="sl-long">it searches only the <b>demo computer</b> or <b>a folder you pick</b>, after your browser asks you. It can't see the rest of your computer, can't change or delete anything, and nothing leaves this tab.</span><span class="sl-short">only the demo computer or a folder you pick. Nothing leaves this tab.</span> <button class="link-btn" id="safetyHow">Check it</button></p>
       <p class="scope-line" id="scopeLine"></p>
       <div class="web-note web-only" id="webNote">
-        <p><b>🔒 You're using the browser version.</b> It searches a sample computer, or a folder you choose from
-          <b>Search in</b>, and only after you agree. Nothing is uploaded: this page is blocked from the internet, and
-          <button class="link-btn" id="verifyNote">Verify</button> shows it live.</p>
-        <p class="muted">For your whole computer, every drive and every browser, <a href="download.html">download the desktop app</a> for Windows, macOS or Linux. Free for 90 days.</p>
+        <p>Nothing is uploaded: this page is blocked from the internet, and <button class="link-btn" id="verifyNote">Verify</button> shows it live.
+          For your whole computer, every drive and every browser, <a href="download.html">download the desktop app</a> for Windows, macOS or Linux. Free for 90 days.</p>
         <button class="btn btn-ghost" id="tryDemo">Try a demo search: <span class="mono">budget</span></button>
       </div>
     </div>
@@ -162,6 +185,16 @@
           <span class="tab-ink" aria-hidden="true"></span>
         </div>
         <p class="stat" id="stat" aria-live="polite"></p>
+      </div>
+      <div class="facets" id="facets" hidden>
+        <div class="chips facet-kinds" id="facetKinds" role="group" aria-label="Show only one kind"></div>
+        <div class="facet-right">
+          <label class="facet-sel" for="facetAge"><span>Modified</span><select id="facetAge"></select></label>
+          <div class="seg" id="groupSeg" role="group" aria-label="Group results by">
+            <span class="seg-label">Group</span>
+            <button data-group="none" aria-pressed="true">Off</button><button data-group="kind">Type</button><button data-group="place">Place</button><button data-group="folder">Folder</button>
+          </div>
+        </div>
       </div>
       <div role="tabpanel" id="panelList" aria-labelledby="tabList">
         <ol class="result-list" id="results" role="listbox" aria-label="Locations"></ol>
@@ -232,7 +265,7 @@
           <li class="desktop-only">☁️ Cloud folders</li><li class="desktop-only">🧭 Every browser</li><li class="desktop-only">🗂️ Open tabs</li>
           <li class="web-only">📁 Any folder or drive you choose</li><li class="web-only">💻 Desktop app: your whole computer, drives and browsers</li>
         </ul>
-        <p class="w-note">🗑️ <b>Deleted it for good?</b> Then it's gone here too. LocatorZero never keeps copies, so a file you permanently delete never shows up again.</p>
+        <p class="w-note">🗑️ <b>Deleted by mistake?</b> If it's in the <span class="cl-bin">Recycle Bin</span>, LocatorZero finds it and puts it back after you confirm. It never keeps copies, so a file you delete for good is gone here too.</p>
       </section>
       <section class="w-slide" data-i="1" hidden>
         <p class="w-kicker">Private by design</p>
@@ -433,7 +466,63 @@
     <div id="wnBody"></div>
     <div class="w-btns">
       <button class="btn btn-ghost" id="wnOk">Got it</button>
-      <button class="btn btn-primary" id="wnTry">Try Clean up 🧹</button>
+      <button class="btn btn-primary" id="wnTry">Try the Recycle Bin search 🗑️</button>
+    </div>
+  </dialog>
+
+  <dialog class="modal deleted" id="deleted" aria-labelledby="dTitle">
+    <div class="v-head">
+      <h2 id="dTitle">Deleted something by mistake?</h2>
+      <button class="icon-btn" id="dClose" aria-label="Close">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+    <div class="tabs d-tabs" role="tablist" aria-label="Your system">
+      <button role="tab" data-os="win" aria-selected="true">Windows</button>
+      <button role="tab" data-os="mac" aria-selected="false">macOS</button>
+      <button role="tab" data-os="linux" aria-selected="false">Linux</button>
+    </div>
+    <section class="d-card d-ok">
+      <h3>✅ Pressed <kbd>Delete</kbd>? It's in the <span class="cl-bin">Recycle Bin</span>.</h3>
+      <p class="d-os" data-os="win">LocatorZero finds it by name, shows the folder it came from, and puts it back there when you press <b>Restore</b> and confirm.</p>
+      <p class="d-os" data-os="mac" hidden>LocatorZero finds it by name. To put it back, right-click it in the Trash and choose <b>Put Back</b>.</p>
+      <p class="d-os" data-os="linux" hidden>LocatorZero finds it by name, shows the folder it came from, and puts it back there when you press <b>Restore</b> and confirm.</p>
+      <button class="btn btn-primary" id="dSearchBin"><span>🗑️ Search the <span class="cl-bin">Recycle Bin</span></span></button>
+      <p class="small muted web-only">In the browser this opens a made-up demo bin. The browser can't see your real one; the <a href="download.html">desktop app</a> can.</p>
+    </section>
+    <section class="d-card">
+      <h3 class="d-os" data-os="win">⚠️ Pressed <kbd>Shift</kbd>+<kbd>Delete</kbd>, or emptied the bin? It skipped the bin.</h3>
+      <h3 class="d-os" data-os="mac" hidden>⚠️ Emptied the Trash, or used Delete Immediately?</h3>
+      <h3 class="d-os" data-os="linux" hidden>⚠️ Used <code>rm</code>, Shift+Delete, or emptied the Trash?</h3>
+      <ol class="d-steps">
+        <li><b>Stop saving to that drive now</b>, and don't install anything onto it. New files can overwrite what's left.</li>
+        <li class="d-os" data-os="win"><b>Look for a backup copy.</b> Right-click the folder it was in › Properties › <b>Previous Versions</b> (works if File History or restore points were on). OneDrive's online recycle bin keeps files for about 30 days.</li>
+        <li class="d-os" data-os="mac" hidden><b>Look for a backup copy.</b> Open the folder it was in, then <b>Enter Time Machine</b>. iCloud Drive keeps deleted files for 30 days under <b>Recently Deleted</b> on iCloud.com.</li>
+        <li class="d-os" data-os="linux" hidden><b>Look for a backup copy</b> in Déjà Dup, Timeshift or your own backups. Cloud folders (Nextcloud, Dropbox) keep deleted files online for a while.</li>
+        <li class="d-os" data-os="win"><b>Try a recovery tool</b>, and save what it finds to a <i>different</i> drive: <b>Windows File Recovery</b> (free, from Microsoft, in the Microsoft Store) or Recuva. Best on USB sticks, SD cards and hard drives. On SSDs the chance is low: they erase deleted files within minutes.</li>
+        <li class="d-os" data-os="mac" hidden><b>Try a recovery tool on removable drives</b>: PhotoRec (free) works well on USB sticks and SD cards. A Mac's internal disk is an encrypted SSD, where recovery tools rarely help.</li>
+        <li class="d-os" data-os="linux" hidden><b>Try TestDisk and PhotoRec</b> (free), saving what they find to a <i>different</i> drive. Best on USB sticks and SD cards; ext4 and SSDs rarely give files back.</li>
+      </ol>
+      <p class="small muted">Google Drive, Dropbox and OneDrive also keep deleted files online, usually for 30 days. Check their website's bin.</p>
+    </section>
+    <p class="small d-foot">💡 <b><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Delete</kbd> in a browser</b> clears history, cookies and cache, not your files. Your files are untouched.<br>
+      This card is help text only. LocatorZero never scans deleted space and never reads your disk below its files and folders.</p>
+  </dialog>
+
+  <dialog class="modal consent" id="restore" aria-labelledby="rsTitle">
+    <div class="c-ico" aria-hidden="true">♻️</div>
+    <h2 id="rsTitle">Put this back?</h2>
+    <p class="c-where mono" id="rsWhere"></p>
+    <ul class="ticks c-promise">
+      <li><b>It goes back exactly where it was deleted from.</b></li>
+      <li><b>Nothing is overwritten.</b> If something with the same name is there now, LocatorZero stops and tells you.</li>
+      <li><b>Only from your own <span class="cl-bin">Recycle Bin</span></b>, and only an item listed just now.</li>
+    </ul>
+    <p class="small c-browser" id="rsMsg" role="status" hidden></p>
+    <p class="small c-browser web-only">Demo: nothing is really moved in the web app.</p>
+    <div class="w-btns">
+      <button class="btn btn-ghost" id="rsNo" autofocus>Cancel</button>
+      <button class="btn btn-primary" id="rsYes">Restore</button>
     </div>
   </dialog>
 

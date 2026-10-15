@@ -188,6 +188,7 @@ pub fn rank(paths: Vec<String>, toks: &[String], limit: usize) -> Vec<Hit> {
                 z: meta.is_file().then(|| meta.len()),
                 t: mtime_ms(&meta),
                 url: None,
+                id: None,
                 p,
             })
         })

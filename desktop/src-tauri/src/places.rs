@@ -1,5 +1,5 @@
 //! Places the user can scope a search to: this computer, connected drives (USB, external, network) and cloud
-//! folders. Listing them reads only mount tables and folder names.
+//! folders. Listing them reads only mount tables, folder names and each drive's size, free space and file system.
 
 use serde::Serialize;
 use std::path::{Path, PathBuf};
@@ -12,10 +12,47 @@ pub struct Place {
     pub path: String,
     /// true when the system index covers it; otherwise LocatorZero lists it into memory after consent
     pub indexed: bool,
+    /// size and free space of the drive that holds it, in bytes, when the system reports them
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub total: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub free: Option<u64>,
+    /// file system, such as NTFS, APFS, ext4 or exFAT
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fs: Option<String>,
 }
 
-fn place(label: impl Into<String>, kind: &'static str, path: &Path, indexed: bool) -> Place {
-    Place { label: label.into(), kind, path: path.to_string_lossy().into_owned(), indexed }
+pub fn place(label: impl Into<String>, kind: &'static str, path: &Path, indexed: bool) -> Place {
+    Place { label: label.into(), kind, path: path.to_string_lossy().into_owned(), indexed, total: None, free: None, fs: None }
+}
+
+/// Adds each place's drive size, free space and file system. A network drive that does not answer can stall the
+/// system call behind this, so the lookup runs on its own thread and is skipped after a short wait.
+pub fn annotate(places: &mut [Place]) {
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let disks = sysinfo::Disks::new_with_refreshed_list();
+        let v: Vec<(PathBuf, u64, u64, String)> = disks
+            .list()
+            .iter()
+            .map(|d| (d.mount_point().to_path_buf(), d.total_space(), d.available_space(), d.file_system().to_string_lossy().into_owned()))
+            .collect();
+        let _ = tx.send(v);
+    });
+    let Ok(disks) = rx.recv_timeout(std::time::Duration::from_millis(400)) else { return };
+    for p in places.iter_mut() {
+        let path = Path::new(&p.path);
+        // The drive whose mount point is the longest prefix of this place holds it.
+        if let Some(d) = disks.iter().filter(|d| path.starts_with(&d.0)).max_by_key(|d| d.0.as_os_str().len()) {
+            if d.1 > 0 {
+                p.total = Some(d.1);
+                p.free = Some(d.2);
+            }
+            if !d.3.is_empty() {
+                p.fs = Some(d.3.clone());
+            }
+        }
+    }
 }
 
 /// Parse /proc/mounts lines into removable, external and network places.
@@ -90,6 +127,7 @@ pub fn list() -> Vec<Place> {
             }
         }
     }
+    annotate(&mut v);
     v
 }
 

@@ -1,6 +1,7 @@
 pub mod files;
 pub mod history;
 pub mod procs;
+pub mod trash;
 
 use serde::Serialize;
 

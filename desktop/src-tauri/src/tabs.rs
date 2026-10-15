@@ -71,6 +71,7 @@ pub fn filter(snaps: &[Snapshot], toks: &[String], limit: usize) -> Vec<Hit> {
                 z: None,
                 t: (t.last > 0).then_some(t.last),
                 url: Some(t.url.clone()),
+                id: None,
             });
         }
     }

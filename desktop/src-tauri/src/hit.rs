@@ -23,4 +23,7 @@ pub struct Hit {
     pub t: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub url: Option<String>,
+    /// Recycle Bin items only: the system's identifier for the item, which Restore takes back from the latest listing
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
 }

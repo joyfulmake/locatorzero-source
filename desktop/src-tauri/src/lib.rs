@@ -1,5 +1,6 @@
-//! LocatorZero desktop core. Every command here reads, with two exceptions the user starts: the opt-in tabs host
-//! registration, and Clean up, which moves files the user ticked and confirmed to the system's bin (see cleanup.rs).
+//! LocatorZero desktop core. Every command here reads, with three exceptions the user starts: the opt-in tabs host
+//! registration, Clean up, which moves files the user ticked and confirmed to the system's bin (see cleanup.rs), and
+//! Restore, which puts an item the user confirmed back where it was deleted from (see sources/trash.rs).
 //! No networking crate is a dependency (see desktop/check-no-network.sh), and the only socket is a private Unix
 //! socket to the tabs extension's host (see tabs.rs). Results carry a location and metadata only.
 
@@ -15,7 +16,7 @@ mod tabs;
 use hit::Hit;
 use serde::Serialize;
 use std::time::Instant;
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 
 #[derive(Serialize)]
 struct LocateOut {
@@ -84,7 +85,10 @@ async fn pick_folder(app: tauri::AppHandle) -> Option<places::Place> {
     let picked = app.dialog().file().set_title("Choose a folder for LocatorZero to search").blocking_pick_folder()?;
     let path = picked.into_path().ok()?;
     let label = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| path.to_string_lossy().into_owned());
-    Some(places::Place { label, kind: "folder", path: path.to_string_lossy().into_owned(), indexed: false })
+    let mut picked = [places::place(label, "folder", &path, false)];
+    places::annotate(&mut picked);
+    let [picked] = picked;
+    Some(picked)
 }
 
 /// Progress of the in-memory listing of a chosen place.
@@ -97,7 +101,21 @@ fn place_progress(path: String) -> (usize, bool) {
 #[tauri::command]
 fn forget() {
     sources::files::forget();
+    sources::trash::forget();
     cleanup::forget();
+}
+
+/// Put items the user confirmed back where they were deleted from. Only items from the latest listing of the bin
+/// qualify, and nothing is ever overwritten. Returns the restored paths.
+#[tauri::command]
+async fn trash_restore(ids: Vec<String>) -> Result<Vec<String>, String> {
+    tauri::async_runtime::spawn_blocking(move || sources::trash::restore(&ids)).await.map_err(|e| e.to_string())?
+}
+
+/// Open the Recycle Bin or Trash in the system file manager.
+#[tauri::command]
+fn open_bin() -> Result<(), String> {
+    reveal::open_bin()
 }
 
 /// Clean up: find duplicate and large files in one place the user chose and consented to.
@@ -153,20 +171,23 @@ async fn search_sources(query: String, sources: Vec<String>, limit: Option<usize
     let mut toks = tokens(&query);
     query.zeroize();
     let limit = limit.unwrap_or(400).min(2000);
-    if toks.is_empty() {
+    let want = |s: &str| sources.iter().any(|x| x == s);
+    // An empty query means something only in the bin, where it lists the most recently deleted items.
+    let bin_only = sources.len() == 1 && want("trash");
+    if toks.is_empty() && !bin_only {
         return LocateOut { hits: vec![], ms: 0.0, errors: vec![], licence_required: false };
     }
-    let want = |s: &str| sources.iter().any(|x| x == s);
-    let (files, history, procs, open_tabs) = std::thread::scope(|sc| {
+    let (files, history, procs, open_tabs, bin) = std::thread::scope(|sc| {
         let f = sc.spawn(|| if want("files") { sources::files::search(&toks, limit) } else { Ok(vec![]) });
         let h = sc.spawn(|| if want("history") { sources::history::search(&toks, limit / 2) } else { Ok(vec![]) });
         let p = sc.spawn(|| if want("proc") { Ok(sources::procs::search(&toks, 100)) } else { Ok(vec![]) });
         let t = sc.spawn(|| if want("tabs") { Ok(tabs::search(&toks, 100)) } else { Ok(vec![]) });
-        (f.join(), h.join(), p.join(), t.join())
+        let b = sc.spawn(|| if want("trash") { sources::trash::search(&toks, 300) } else { Ok(vec![]) });
+        (f.join(), h.join(), p.join(), t.join(), b.join())
     });
     let mut hits = Vec::new();
     let mut errors = Vec::new();
-    for (label, r) in [("files", files), ("history", history), ("processes", procs), ("tabs", open_tabs)] {
+    for (label, r) in [("files", files), ("history", history), ("processes", procs), ("tabs", open_tabs), ("bin", bin)] {
         match r {
             Ok(Ok(mut v)) => hits.append(&mut v),
             Ok(Err(e)) => errors.push(format!("{label}: {e}")),
@@ -198,7 +219,13 @@ struct Status {
     platform: &'static str,
     sources: Vec<sources::SourceStatus>,
     network_libraries: bool,
+    /// the shortcut that brings LocatorZero to the front, or None when the system refused it
+    hotkey: Option<String>,
+    bin: &'static str,
+    can_restore: bool,
 }
+
+static HOTKEY: std::sync::OnceLock<Result<String, String>> = std::sync::OnceLock::new();
 
 #[tauri::command]
 async fn status() -> Status {
@@ -207,6 +234,9 @@ async fn status() -> Status {
         platform: std::env::consts::OS,
         sources: vec![sources::files::status(), tabs::status(), sources::history::status(), sources::procs::status()],
         network_libraries: false,
+        hotkey: HOTKEY.get().and_then(|r| r.as_ref().ok().cloned()),
+        bin: sources::trash::bin_label(),
+        can_restore: sources::trash::can_restore(),
     }
 }
 
@@ -262,6 +292,30 @@ fn harden() {
     }
 }
 
+/// Ctrl+Shift+Space (Cmd+Shift+Space on a Mac): LocatorZero comes to the front with the search field ready.
+fn hotkey() -> tauri_plugin_global_shortcut::Shortcut {
+    use tauri_plugin_global_shortcut::{Code, Modifiers, Shortcut};
+    let main = if cfg!(target_os = "macos") { Modifiers::SUPER } else { Modifiers::CONTROL };
+    Shortcut::new(Some(main | Modifiers::SHIFT), Code::Space)
+}
+
+fn hotkey_label() -> &'static str {
+    if cfg!(target_os = "macos") {
+        "⌘ Shift Space"
+    } else {
+        "Ctrl Shift Space"
+    }
+}
+
+fn bring_to_front(app: &tauri::AppHandle) {
+    if let Some(w) = app.get_webview_window("main") {
+        let _ = w.unminimize();
+        let _ = w.show();
+        let _ = w.set_focus();
+        let _ = w.emit("lz-focus", ());
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     harden();
@@ -270,11 +324,30 @@ pub fn run() {
         tabs::run_host();
         return;
     }
+    use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(
+            tauri_plugin_global_shortcut::Builder::new()
+                .with_handler(|app, _shortcut, event| {
+                    if event.state() == ShortcutState::Pressed {
+                        bring_to_front(app);
+                    }
+                })
+                .build(),
+        )
+        .setup(|app| {
+            // Another app may already own the shortcut. Then LocatorZero simply runs without it.
+            let r = app.global_shortcut().register(hotkey()).map(|_| hotkey_label().to_string()).map_err(|e| e.to_string());
+            if let Err(e) = &r {
+                eprintln!("LocatorZero: shortcut {} unavailable: {e}", hotkey_label());
+            }
+            let _ = HOTKEY.set(r);
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             locate, preview, reveal, status, setup_tabs, licence_status, licence_activate, licence_remove, places, pick_folder, place_progress,
-            forget, cleanup_scan, cleanup_progress, cleanup_stop, cleanup_trash
+            forget, cleanup_scan, cleanup_progress, cleanup_stop, cleanup_trash, trash_restore, open_bin
         ])
         .run(tauri::generate_context!())
         .expect("error while running LocatorZero");

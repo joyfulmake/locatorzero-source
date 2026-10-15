@@ -184,6 +184,7 @@ pub fn query_store(st: &Store, toks: &[String], limit: usize) -> Result<Vec<Hit>
             z: None,
             t: Some(to_ms(t)),
             url: Some(url),
+            id: None,
         });
     }
     Ok(out)

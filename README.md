@@ -52,6 +52,13 @@ drives, cloud folders and every browser. Private, offline, read-only.</p>
   seconds, as a list or a map of every copy. You tick what goes; one copy of every file always stays. Nothing moves
   until you confirm, each duplicate is checked byte for byte first, and files go to the Recycle Bin or Trash, never
   deleted outright. Try it on demo files in the web app.
+- **Deleted by mistake? (new in 0.3)** Search the Recycle Bin or Trash by name and see when each item was deleted
+  and from where. **Restore** puts it back after you confirm, never overwriting anything. Two separate OKs: one to look
+  in the bin, one for each restore. If a file skipped the bin, a help card says what to do on Windows, macOS and Linux.
+- **Sort it out fast (new in 0.3).** Kind chips with counts above the results, **Group** by type, place or folder, and
+  search tricks: `ext:pdf`, `size:>10mb`, `modified:week`, `type:image`.
+- **Connected places (desktop, new in 0.3).** Every drive, USB stick, network and cloud folder with its free space and
+  file system, one click from searching it. **Ctrl Shift Space** (⌘ Shift Space) opens LocatorZero from any app.
 - **Preview on request.** One file at a time, at most the first 64 KB of text or one image.
 - **Hand-off.** "Show in folder" opens your file manager; "Open" takes a web page back to your browser.
 - **Light and dark**, keyboard-first (`/` jump to search, `Enter` search, `↑↓` then `Enter` preview, `1`/`2` tabs, `S` sidebar, `T` theme),

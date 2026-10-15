@@ -1,6 +1,6 @@
 # Roadmap
 
-Status as of 11 October 2026. ✅ done · 🔜 next · 🧭 later · ⚖️ needs a decision from the owner.
+Status as of 15 October 2026. ✅ done · 🔜 next · 🧭 later · ⚖️ needs a decision from the owner.
 
 ## v0.1: built and tested ✅
 
@@ -28,7 +28,13 @@ Status as of 11 October 2026. ✅ done · 🔜 next · 🧭 later · ⚖️ need
 - Next for Clean up: deleted-by-mistake help (v0.3 below), then leftovers (installers for apps already installed,
   empty folders), old downloads, and similar photos (shared with the mobile plan below).
 
-## v0.3: Deleted by mistake? (next release, after launch week) 🔜
+## v0.3: Deleted by mistake? (built 15 Oct 2026; parts 1 and 2) ✅
+
+Also in 0.3: kind chips with counts and grouping by type, place or folder; typed filters (`ext:`, `size:`,
+`modified:`, `type:`); connected places with free space and file system; the Ctrl/⌘ Shift Space shortcut; a plain
+statement under the web search field of what the browser version can see; a demo Recycle Bin in the web app.
+Part 1 is implemented with the `trash` crate's `os_limited::list` and `restore_all` (Windows shell Recycle Bin,
+freedesktop Trash for this user id), in `desktop/src-tauri/src/sources/trash.rs`. Needs a run on a real Windows machine.
 
 Decided 13 Oct 2026. Three parts, in order:
 

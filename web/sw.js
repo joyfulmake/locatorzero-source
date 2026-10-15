@@ -1,5 +1,5 @@
 // Offline cache for the app shell only. It never caches anything but these files, and the page itself cannot fetch.
-var VERSION = 'lz-v13';
+var VERSION = 'lz-v14';
 var SHELL = ['./', 'index.html', 'app.css', 'app.js', 'theme-boot.js', 'demo-data.js', 'icon.svg', 'manifest.webmanifest', 'download.html', 'download.js', 'privacy.html', 'terms.html', 'refund.html'];
 
 self.addEventListener('install', function (e) {

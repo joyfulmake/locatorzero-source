@@ -48,6 +48,7 @@ pub fn search(toks: &[String], limit: usize) -> Vec<Hit> {
                 z: None,
                 t: Some(p.start_time() as i64 * 1000),
                 url: None,
+                id: None,
             })
         })
         .collect();

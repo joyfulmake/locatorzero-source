@@ -46,6 +46,24 @@ pub fn reveal(path: Option<&str>, url: Option<&str>) -> Result<(), String> {
     }
 }
 
+/// The Recycle Bin or Trash, opened in the system file manager.
+pub fn open_bin() -> Result<(), String> {
+    #[cfg(windows)]
+    return spawn("explorer", &["shell:RecycleBinFolder"]);
+    #[cfg(target_os = "macos")]
+    return spawn("open", &[&crate::sources::home().ok_or("no home folder")?.join(".Trash").to_string_lossy()]);
+    #[cfg(all(unix, not(target_os = "macos")))]
+    {
+        let data = std::env::var_os("XDG_DATA_HOME")
+            .map(std::path::PathBuf::from)
+            .or_else(|| crate::sources::home().map(|h| h.join(".local/share")))
+            .ok_or("no home folder")?;
+        let files = data.join("Trash/files");
+        let dir = if files.is_dir() { files } else { data.join("Trash") };
+        spawn("xdg-open", &[&dir.to_string_lossy()])
+    }
+}
+
 fn opener() -> &'static str {
     if cfg!(target_os = "macos") {
         "open"

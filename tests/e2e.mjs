@@ -456,6 +456,174 @@ await test('installers are never stored in the offline cache', async () => {
   assert(!cached.some(p => p.includes('/downloads/')), 'cached: ' + cached.filter(p => p.includes('/downloads/')));
 });
 
+await test('web says plainly under the search field what it can and cannot see, also while searching', async () => {
+  await page.evaluate(() => window.__lz.wipe(''));
+  const t = await page.textContent('#safetyLine');
+  assert(/demo computer/.test(t) && /a folder you pick/.test(t) && /nothing leaves this tab/.test(t) && /can't see the rest of your computer/.test(t), t);
+  await type(page, 'budget');
+  assert(await page.isVisible('#safetyLine'), 'safety line hidden during a search');
+});
+
+await test('typed filters narrow results and are named in the scope line', async () => {
+  await type(page, 'budget ext:pdf');
+  let r = await page.evaluate(() => window.__lz.state.results.map(i => i.n));
+  assert(r.length > 0 && r.every(n => /\.pdf$/i.test(n)), 'ext: ' + r.slice(0, 5));
+  assert((await page.textContent('#scopeLine')).includes('.pdf'));
+  await type(page, 'a size:>1mb');
+  r = await page.evaluate(() => window.__lz.state.results.map(i => i.z));
+  assert(r.length > 0 && r.every(z => z >= 1048576), 'size: ' + r.slice(0, 5));
+  await type(page, 'a type:image');
+  r = await page.evaluate(() => window.__lz.state.results.map(i => i.k));
+  assert(r.length > 0 && r.every(k => k === 'img'), 'type: ' + r.slice(0, 5));
+  await type(page, 'a modified:week');
+  r = await page.evaluate(() => window.__lz.state.results.map(i => window.LZ_DEMO.now - i.t));
+  assert(r.length > 0 && r.every(d => d <= 7 * 864e5), 'modified: ' + r.slice(0, 5));
+  await type(page, 'ext:csv');
+  r = await page.evaluate(() => window.__lz.state.results.map(i => i.n));
+  assert(r.length > 0 && r.every(n => /\.csv$/i.test(n)), 'a filter alone lists every match');
+  await type(page, 'budget size:huge');
+  assert(await page.evaluate(() => window.__lz.state.pq.words.includes('size:huge')), 'an unparsable filter stays a word');
+});
+
+await test('kind chips show counts that add up, narrow on click, and grouping adds headers', async () => {
+  await type(page, 'budget');
+  await page.waitForSelector('#facets:not([hidden]) [data-fkind]');
+  const counts = await page.$$eval('#facetKinds [data-fkind] em', es => es.map(e => +e.textContent.replace(/\D/g, '')));
+  assert(counts[0] === counts.slice(1).reduce((a, b) => a + b, 0), 'All is not the sum: ' + counts);
+  const kind = await page.$eval('#facetKinds [data-fkind]:not([data-fkind="all"])', b => b.dataset.fkind);
+  await page.click('#facetKinds [data-fkind="' + kind + '"]');
+  assert(await page.evaluate(k => window.__lz.state.results.every(i => i.k === k), kind), 'chip did not narrow');
+  await page.click('#facetKinds [data-fkind="all"]');
+  await page.click('#groupSeg [data-group="kind"]');
+  await page.waitForSelector('.r-group');
+  const ok = await page.evaluate(() => {
+    const ks = window.__lz.state.results.map(i => i.k), seen = new Set();
+    for (let i = 0; i < ks.length; i++) { if (i && ks[i] !== ks[i - 1] && seen.has(ks[i])) return false; seen.add(ks[i]); }
+    return seen.size === document.querySelectorAll('.r-group').length || document.querySelector('#moreBtn:not([hidden])');
+  });
+  assert(ok, 'groups are not contiguous, or headers are missing');
+  assert(await page.evaluate(() => localStorage.getItem('lz.group')) === 'kind', 'grouping is remembered');
+  await page.click('#groupSeg [data-group="folder"]');
+  assert((await page.$$('.r-group')).length > 1);
+  await page.click('#groupSeg [data-group="none"]');
+  assert((await page.$$('.r-group')).length === 0);
+});
+
+await test('no matches offers the Recycle Bin and the deleted-file help', async () => {
+  await type(page, 'zzqxnothing');
+  assert(await page.isVisible('#empty [data-bin]') && await page.isVisible('#empty [data-deleted]'));
+});
+
+await test('Recycle Bin (demo): newest first, Restore asks first, then puts it back', async () => {
+  await page.fill('#q', ''); await page.evaluate(() => { window.__lz.state.q = ''; window.__lz.search(); });
+  await page.click('#scopeBtn');
+  await page.click('#scopeMenu [data-bin]');
+  await page.waitForSelector('.r-bin');
+  const names = await page.$$eval('.r-bin .r-name', es => es.map(e => e.textContent));
+  assert(names[0] === 'Budget_2026 (final).xlsx', 'newest first: ' + names.slice(0, 3));
+  assert((await page.textContent('.r-bin .r-path')).startsWith('from '), 'shows where it came from');
+  assert(!(await page.$('.r-bin [data-act="preview"]')), 'deleted files have no preview');
+  await page.click('.r-bin [data-act="restore"]');
+  await page.waitForSelector('#restore[open]');
+  assert((await page.textContent('#rsWhere')).includes('Documents/Finance'));
+  await page.click('#rsNo');
+  assert(await page.evaluate(() => window.__lz.state.results.length) === names.length, 'cancel moved nothing');
+  await page.click('.r-bin [data-act="restore"]');
+  await page.click('#rsYes');
+  await page.waitForFunction(n => window.__lz.state.results.length === n - 1, names.length);
+  assert((await page.textContent('#toast')).includes('back in Finance'));
+  await type(page, 'thesis');
+  assert(await page.evaluate(() => window.__lz.state.results.length === 1 && window.__lz.state.results[0].s === 'trash'));
+  await page.fill('#q', ''); await page.keyboard.press('Escape');
+  await page.keyboard.press('Escape');
+  await page.waitForFunction(() => window.__lz.state.scope.type === 'all');
+});
+
+await test('Deleted by mistake? explains each system, Shift+Delete and Ctrl+Shift+Delete, and opens the bin', async () => {
+  await page.click('#menuBtn'); await page.waitForSelector('#sidebar.open');
+  await page.click('#deletedSide');
+  await page.waitForSelector('#deleted[open]');
+  await page.click('#deleted [data-os="win"]');
+  let t = await page.evaluate(() => document.getElementById('deleted').innerText);
+  assert(/Shift\s*\+\s*Delete/.test(t) && /Windows File Recovery/.test(t) && /clears history, cookies and cache/.test(t), t);
+  await page.click('#deleted .d-tabs [data-os="mac"]');
+  t = await page.evaluate(() => document.getElementById('deleted').innerText);
+  assert(/Time Machine/.test(t) && /Put Back/.test(t) && !/Windows File Recovery/.test(t), 'mac tab');
+  await page.click('#deleted .d-tabs [data-os="linux"]');
+  assert((await page.evaluate(() => document.getElementById('deleted').innerText)).includes('PhotoRec'));
+  await page.click('#dSearchBin');
+  await page.waitForFunction(() => window.__lz.state.scope.type === 'trash');
+  await page.evaluate(() => window.__lz.wipe(''));
+});
+
+// The desktop interface, against a stand-in for the Rust core, so its own paths run here too.
+await test('desktop: the bin asks first, Restore confirms and explains a refusal, drives show their space, the shortcut is listed', async () => {
+  const dctx = await browser.newContext({ viewport: { width: 1280, height: 860 } });
+  const d = await dctx.newPage();
+  const derr = [];
+  d.on('pageerror', e => derr.push(e.message));
+  await d.addInitScript(() => {
+    localStorage.setItem('lz.welcomeNever', '1'); localStorage.setItem('lz.consent', 'everywhere'); localStorage.setItem('lz.seenVersion', '0.3.0');
+    addEventListener('DOMContentLoaded', () => document.documentElement.classList.add('native'));
+    const ok = v => Promise.resolve(v), calls = window.__calls = [];
+    const bin = [
+      { n: 'report.docx', p: '/home/u/Documents/report.docx', s: 'trash', src: 'Trash', z: 1200, t: Date.now() - 36e5, id: 'info/report.docx.trashinfo' },
+      { n: 'clash.txt', p: '/home/u/clash.txt', s: 'trash', src: 'Trash', z: 5, t: Date.now() - 72e5, id: 'info/clash.txt.trashinfo' }];
+    window.LZ_NATIVE = {
+      locate: (q, srcs, scope) => { calls.push(['locate', q, srcs, scope]); return ok({ hits: srcs.join() === 'trash' ? bin.filter(h => h.n.includes(q)).map(h => Object.assign({}, h)) : [], ms: 2, errors: [], licence_required: false }); },
+      places: () => ok([{ label: 'Your home folder', kind: 'home', path: '/home/u', indexed: true, total: 512e9, free: 120e9, fs: 'ext4' },
+        { label: 'USB STICK', kind: 'usb', path: '/media/u/USB STICK', indexed: false, total: 32e9, free: 1e9, fs: 'vfat' }]),
+      pickFolder: () => ok(null), placeProgress: () => ok([0, true]), forget: () => ok(), preview: () => ok({ kind: 'none', size: 0, read: 0 }),
+      reveal: () => ok(), setupTabs: () => ok({ browsers: [] }), openBin: () => { calls.push(['openBin']); return ok(); },
+      status: () => ok({ version: '0.3.0', platform: 'linux', sources: [{ id: 'files', label: 'This computer', available: true, mode: 'system index', degraded: false, note: '' }], network_libraries: false, hotkey: 'Ctrl Shift Space', bin: 'Trash', can_restore: true }),
+      restore: ids => { calls.push(['restore', ids]); return /clash/.test(ids[0]) ? Promise.reject('Something called “clash.txt” is already in /home/u. Nothing was overwritten. Rename or move it, then restore again.') : ok(['/home/u/Documents/report.docx']); },
+      onFocusRequest: fn => { window.__focusRequest = fn; },
+      licence: { status: () => ok({ state: 'trial', trial_days_left: 80, allowed: true }), activate: () => ok({}), remove: () => ok({}) }
+    };
+  });
+  await d.goto(base);
+  await d.waitForFunction(() => document.querySelector('.hotkey-row') && !document.querySelector('.hotkey-row').hidden);
+  assert((await d.textContent('#hotkeyKeys')).replace(/\s/g, '') === 'CtrlShiftSpace');
+  // The shortcut brings the window forward; the page readies the search field.
+  await d.evaluate(() => { document.body.focus(); window.__focusRequest(); });
+  assert(await d.evaluate(() => document.activeElement.id === 'q'), 'shortcut did not focus the search field');
+
+  await d.click('#menuBtn'); await d.waitForSelector('.place-row');
+  const pl = await d.textContent('#placeList');
+  assert(pl.includes('free of') && pl.includes('ext4') && pl.includes('USB STICK'), pl);
+  assert(await d.$('.pl-bar.full'), 'a nearly full drive is marked');
+  await d.click('#sidebarClose');
+
+  // First permission: looking in the bin. Nothing is read before Allow.
+  await d.click('#scopeBtn'); await d.click('#scopeMenu [data-bin]');
+  await d.waitForSelector('#consent[open]');
+  assert((await d.textContent('#cTitle')).includes('Trash'));
+  assert((await d.textContent('#cReads')).includes('Only your own Trash'));
+  assert(!(await d.evaluate(() => window.__calls.some(c => c[0] === 'locate' && c[2].join() === 'trash'))), 'bin read before consent');
+  await d.click('#cYes');
+  await d.waitForSelector('.r-bin');
+  assert(await d.evaluate(() => window.__calls.some(c => c[0] === 'locate' && c[2].join() === 'trash' && c[3] === null)), 'bin not asked for');
+  assert((await d.$$('.r-bin')).length === 2);
+  await d.click('#scopeLine [data-open-bin]');
+  assert(await d.evaluate(() => window.__calls.some(c => c[0] === 'openBin')));
+
+  // Second permission: each Restore. A refusal stays on screen with its reason.
+  await d.click('.r-bin:has-text("clash.txt") [data-act="restore"]');
+  await d.waitForSelector('#restore[open]');
+  await d.click('#rsYes');
+  await d.waitForSelector('#rsMsg:not([hidden])');
+  assert((await d.textContent('#rsMsg')).includes('Nothing was overwritten'));
+  assert(await d.isHidden('#rsYes'));
+  await d.click('#rsNo');
+  await d.click('.r-bin:has-text("report.docx") [data-act="restore"]');
+  await d.click('#rsYes');
+  await d.waitForFunction(() => !document.getElementById('restore').open);
+  assert((await d.textContent('#toast')).includes('back in /home/u/Documents'));
+  assert(await d.evaluate(() => window.__calls.filter(c => c[0] === 'restore').map(c => c[1][0]).join() === 'info/clash.txt.trashinfo,info/report.docx.trashinfo'));
+  assert(derr.length === 0, derr.join('\n'));
+  await dctx.close();
+});
+
 await test('no JavaScript errors', async () => {
   assert(errors.length === 0, errors.join('\n'));
 });
