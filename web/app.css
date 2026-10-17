@@ -599,6 +599,7 @@ body.dl-page { padding-bottom: 0; }
 .dl-cmds dd { margin: 0; }
 .dl-req { margin: 0; padding-left: 18px; display: grid; gap: 8px; color: var(--text-2); font-size: 14px; }
 .dl-req b { color: var(--text); }
+.dl-req .dl-cmd { display: block; margin-top: 6px; padding: 6px 9px; border-radius: 8px; background: var(--surface-2); border: 1px solid var(--border); font-size: 12px; overflow-wrap: anywhere; user-select: all; }
 .dl-foot { display: flex; justify-content: center; gap: 16px; padding: 22px 16px 30px; color: var(--text-3); font-size: 13px; border-top: 1px solid var(--border); }
 @media (max-width: 720px) { .dl-try { display: none; } .dl-hero { padding-top: 5vh; } }
 

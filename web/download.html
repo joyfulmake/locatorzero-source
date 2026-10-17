@@ -77,6 +77,9 @@
           <li><b>Windows</b> 10 or 11, 64-bit. On Windows 10, the installer may fetch Microsoft's WebView2 component if it's missing; Windows 11 already has it.</li>
           <li><b>macOS</b> 10.13 or later, Apple silicon or Intel.</li>
           <li><b>Linux</b> with WebKitGTK 4.1: Ubuntu 22.04+, Debian 12+, Fedora 36+ and similar.</li>
+          <li id="arch"><b>Arch Linux</b>: build a package from our PKGBUILD. It downloads the <code>.deb</code> above and checks its SHA-256 first.
+            <code class="dl-cmd">curl -O https://raw.githubusercontent.com/joyfulmake/locatorzero-source/main/packaging/aur/locatorzero-bin/PKGBUILD</code>
+            <code class="dl-cmd">makepkg -si</code></li>
         </ul>
       </div>
     </section>
